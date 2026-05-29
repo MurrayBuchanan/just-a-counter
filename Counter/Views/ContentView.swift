@@ -59,13 +59,19 @@ struct ContentView: View {
             .navigationTitle("Counters")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack {
-                        Button { showNewCollectionSheet = true } label: {
-                            Image(systemName: "folder.badge.plus")
+                    Menu {
+                        Button {
+                            showAddSheet = true
+                        } label: {
+                            Label("New Counter", systemImage: "plus.square")
                         }
-                        Button { showAddSheet = true } label: {
-                            Image(systemName: "plus")
+                        Button {
+                            showNewCollectionSheet = true
+                        } label: {
+                            Label("New Folder", systemImage: "folder.badge.plus")
                         }
+                    } label: {
+                        Image(systemName: "plus")
                     }
                 }
             }
