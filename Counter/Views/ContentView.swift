@@ -30,6 +30,15 @@ struct ContentView: View {
     @State private var dragOverIndex: (collection: UUID?, index: Int)? = nil
     @State private var draggingCounterID: UUID? = nil
     @State private var isUnassignedHeaderDropTarget: Bool = false
+    @State private var showingEditSheet = false
+    @State private var counterToEdit: Counter? = nil
+    @State private var showingReorderAlert = false
+    @State private var showingDeleteConfirmation = false
+    @State private var counterToDelete: Counter? = nil
+    @State private var showingEditCollectionSheet = false
+    @State private var collectionToEdit: CounterCollection? = nil
+    @State private var showingDeleteCollectionConfirmation = false
+    @State private var collectionToDelete: CounterCollection? = nil
 
     var body: some View {
         NavigationStack {
@@ -56,9 +65,6 @@ struct ContentView: View {
                         }
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
             }
             .sheet(isPresented: $showAddSheet) {
                 NavigationStack {
@@ -73,6 +79,66 @@ struct ContentView: View {
                         let collection = CounterCollection(name: name, order: newOrder, iconName: iconName)
                         context.insert(collection)
                     })
+                }
+            }
+            .sheet(isPresented: $showingEditSheet) {
+                if let counter = counterToEdit {
+                    NavigationStack {
+                        EditCounterView(counter: counter)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingEditCollectionSheet) {
+                if let collection = collectionToEdit {
+                    NavigationStack {
+                        EditCollectionView(collection: collection)
+                    }
+                }
+            }
+            .confirmationDialog("Delete Counter?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let counter = counterToDelete {
+                        deleteCounter(counter)
+                        counterToDelete = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    counterToDelete = nil
+                }
+            } message: {
+                Text("Are you sure you want to delete this counter? This action cannot be undone.")
+            }
+            .confirmationDialog("Delete Collection?", isPresented: $showingDeleteCollectionConfirmation, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let collection = collectionToDelete {
+                        deleteCollection(collection)
+                        collectionToDelete = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    collectionToDelete = nil
+                }
+            } message: {
+                Text("Are you sure you want to delete this collection? All counters in this collection will be unassigned.")
+            }
+            .alert("Move", isPresented: $showingReorderAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("To move or reorder, simply drag and drop the counter to a new position.")
+            }
+        }
+        .task {
+            // Pre-warm SwiftData by fetching a single Counter and CounterCollection
+            do {
+                let container = try? ModelContainer(for: Counter.self, CounterCollection.self)
+                if let container {
+                    let context = ModelContext(container)
+                    var counterDescriptor = FetchDescriptor<Counter>()
+                    counterDescriptor.fetchLimit = 1
+                    _ = try? context.fetch(counterDescriptor)
+                    var collectionDescriptor = FetchDescriptor<CounterCollection>()
+                    collectionDescriptor.fetchLimit = 1
+                    _ = try? context.fetch(collectionDescriptor)
                 }
             }
         }
@@ -113,7 +179,10 @@ struct ContentView: View {
                         handleDrop(to: nil, at: idx, providers: providers)
                         return true
                     },
-                    dragOverIndex: $dragOverIndex
+                    dragOverIndex: $dragOverIndex,
+                    onEdit: { counterToEdit = counter; showingEditSheet = true },
+                    onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
+                    onReorder: { showingReorderAlert = true }
                 )
                 .animation(.easeInOut, value: counter.order)
                 // Drop indicator after each row
@@ -146,6 +215,20 @@ struct ContentView: View {
                     return true
                 }
             )
+            .contextMenu {
+                Button {
+                    collectionToEdit = collection
+                    showingEditCollectionSheet = true
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    collectionToDelete = collection
+                    showingDeleteCollectionConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             // Drop indicator before first row
             DropIndicator(isActive: dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == 0)
                 .onDrop(of: ["public.text"], isTargeted: Binding(
@@ -167,7 +250,10 @@ struct ContentView: View {
                             handleDrop(to: collection, at: idx, providers: providers)
                             return true
                         },
-                        dragOverIndex: $dragOverIndex
+                        dragOverIndex: $dragOverIndex,
+                        onEdit: { counterToEdit = counter; showingEditSheet = true },
+                        onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
+                        onReorder: { showingReorderAlert = true }
                     )
                     .animation(.easeInOut, value: counter.order)
                     // Drop indicator after each row
@@ -339,11 +425,26 @@ struct ContentView: View {
         }
         .contentShape(Rectangle())
     }
+
+    private func deleteCounter(_ counter: Counter) {
+        context.delete(counter)
+    }
+
+    private func deleteCollection(_ collection: CounterCollection) {
+        // Unassign all counters in this collection
+        for counter in collection.counters {
+            counter.collection = nil
+        }
+        context.delete(collection)
+    }
 }
 
 // MARK: - CounterRowView
 private struct CounterRowView: View {
     let counter: Counter
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onReorder: (() -> Void)? = nil
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
     @State private var isActive = false
@@ -411,7 +512,23 @@ private struct CounterRowView: View {
             .opacity(0)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        // .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .contextMenu {
+            Button {
+                onEdit?()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button {
+                onReorder?()
+            } label: {
+                Label("Move", systemImage: "arrow.right.arrow.left")
+            }
+            Button(role: .destructive) {
+                onDelete?()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 }
 
@@ -618,10 +735,13 @@ private struct DraggableCounterRow: View {
     let onDrag: () -> Void
     let onDrop: ([NSItemProvider]) -> Bool
     @Binding var dragOverIndex: (collection: UUID?, index: Int)?
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onReorder: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
-            CounterRowView(counter: counter)
+            CounterRowView(counter: counter, onEdit: onEdit, onDelete: onDelete, onReorder: onReorder)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
