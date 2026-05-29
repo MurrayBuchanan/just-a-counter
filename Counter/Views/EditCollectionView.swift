@@ -10,6 +10,10 @@ struct EditCollectionView: View {
         _name = State(initialValue: collection.name)
     }
 
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -21,16 +25,22 @@ struct EditCollectionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        collection.name = name
+                    Button(role: .close) {
                         dismiss()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) {
+                        saveChanges()
+                    }
+                    .disabled(!canSave)
                 }
             }
         }
+    }
+
+    private func saveChanges() {
+        collection.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        dismiss()
     }
 }

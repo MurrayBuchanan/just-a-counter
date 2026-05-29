@@ -49,13 +49,19 @@ final class Counter {
     
     // Theme selection
     var themeName: String
+    var layoutStyle: String = CounterLayoutStyle.standard.rawValue
     
     var collection: CounterCollection?
+    
+    var layout: CounterLayoutStyle {
+        get { CounterLayoutStyle(rawValue: layoutStyle) ?? .standard }
+        set { layoutStyle = newValue.rawValue }
+    }
     
     init(
         name: String,
         value: Int = 0,
-        dailyIncrement: Int = 1,
+        dailyIncrement: Int = 0,
         step: Int = 1,
         createdAt: Date = Date(),
         iconName: String? = nil,
@@ -65,6 +71,7 @@ final class Counter {
         isCountingUp: Bool = true,
         order: Int = 0,
         themeName: String = "blue",
+        layoutStyle: String = CounterLayoutStyle.standard.rawValue,
         collection: CounterCollection? = nil,
         uuid: UUID = UUID()
     ) {
@@ -80,6 +87,7 @@ final class Counter {
         self.isCountingUp = isCountingUp
         self.order = order
         self.themeName = themeName
+        self.layoutStyle = layoutStyle
         self.collection = collection
         self.uuid = uuid
     }
@@ -89,4 +97,8 @@ final class Counter {
         guard let goal = goalValue else { return false }
         return isCountingUp ? value >= goal : value <= 0
     }
+}
+
+extension Counter: Identifiable {
+    var id: UUID { uuid }
 }

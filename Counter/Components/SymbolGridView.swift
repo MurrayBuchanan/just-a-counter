@@ -11,17 +11,15 @@ struct SymbolGridView: View {
     @Binding var selectedSymbolName: String?
     var name: Binding<String>? = nil
     @Binding var didConfirm: Bool
-    var confirmButtonLabel: String
     var navigationLabel: String
     @Environment(\.dismiss) var dismiss
 
     @State private var selectedCategory = 0
     @State private var tempSelectedSymbol: String? = "plus.square"
     @State private var scrollProxy: ScrollViewProxy? = nil
-    @State private var navTitle: String = "Objects"
     @FocusState private var nameFieldFocused: Bool
-    @State private var sectionFrames: [Int: CGRect] = [:]
     @State private var isProgrammaticScroll = false
+    @State private var isUpdatingFromScroll = false
 
     let categories = ["Objects", "People", "Symbols"]
 
@@ -36,6 +34,7 @@ struct SymbolGridView: View {
     ]
 
     var allSymbols: [String] { objectSymbols + peopleSymbols + symbolSymbols }
+
     var categoryRanges: [Range<Int>] {
         let objects = 0..<objectSymbols.count
         let people = objects.upperBound..<(objects.upperBound + peopleSymbols.count)
@@ -45,42 +44,72 @@ struct SymbolGridView: View {
 
     let rows = Array(repeating: GridItem(.flexible(), spacing: 20), count: 4)
 
-    // Helper: Calculate pixel offset for each category's start (multi-row grid aware)
-    var categoryPixelOffsets: [CGFloat] {
-        let symbolWidth: CGFloat = 52 + 24 // width + spacing
-        let symbolsPerColumn = 4
-        var offsets: [CGFloat] = []
-        var currentIdx = 0
-        for range in categoryRanges {
-            let startColumn = currentIdx / symbolsPerColumn
-            offsets.append(CGFloat(startColumn) * symbolWidth)
-            currentIdx += range.count
+    private let symbolSize: CGFloat = 52
+    private let columnSpacing: CGFloat = 24
+    private let gridPadding: CGFloat = 16
+    private var columnWidth: CGFloat { symbolSize + columnSpacing }
+
+    private func categoryIndex(forSymbolIndex index: Int) -> Int {
+        let clamped = min(max(index, 0), allSymbols.count - 1)
+        for (catIdx, range) in categoryRanges.enumerated() where range.contains(clamped) {
+            return catIdx
         }
-        // Add the end of the last category for easier comparison
-        let totalColumns = (allSymbols.count + symbolsPerColumn - 1) / symbolsPerColumn
-        offsets.append(CGFloat(totalColumns) * symbolWidth)
-        return offsets
+        return categoryRanges.count - 1
     }
 
-    private func symbolsForCategory(_ idx: Int) -> [String] {
-        switch idx {
-        case 0: return objectSymbols
-        case 1: return peopleSymbols
-        case 2: return symbolSymbols
-        default: return []
+    private func categoryIndex(forScrollOffset offset: CGFloat) -> Int {
+        let adjusted = max(0, offset - gridPadding)
+        let column = Int(adjusted / columnWidth)
+        let symbolIndex = min(column * rows.count, allSymbols.count - 1)
+        return categoryIndex(forSymbolIndex: symbolIndex)
+    }
+
+    private func symbolIndex(for name: String?) -> Int? {
+        guard let name else { return nil }
+        return allSymbols.firstIndex(of: name)
+    }
+
+    private func scrollToSymbol(at index: Int, animated: Bool) {
+        isProgrammaticScroll = true
+        isUpdatingFromScroll = true
+        selectedCategory = categoryIndex(forSymbolIndex: index)
+
+        let anchor = UnitPoint(x: 0.3, y: 0.5)
+        let scroll = {
+            scrollProxy?.scrollTo(index, anchor: anchor)
+        }
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.35), scroll)
+        } else {
+            scroll()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + (animated ? 0.45 : 0.15)) {
+            isProgrammaticScroll = false
+            isUpdatingFromScroll = false
         }
     }
 
-    private func updateSelectedCategory(visibleFrame: CGRect) {
-        if isProgrammaticScroll { return }
-        // Find the section with the largest intersection with the visible frame
-        let intersections = sectionFrames.mapValues { $0.intersection(visibleFrame).width }
-        if let (maxIdx, _) = intersections.max(by: { $0.value < $1.value }), selectedCategory != maxIdx {
-            DispatchQueue.main.async {
-                withAnimation {
-                    selectedCategory = maxIdx
-                }
-            }
+    private func jumpToCategory(_ index: Int) {
+        guard index >= 0, index < categories.count else { return }
+        isProgrammaticScroll = true
+        withAnimation(.easeInOut(duration: 0.35)) {
+            scrollProxy?.scrollTo(categoryRanges[index].lowerBound, anchor: .leading)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            isProgrammaticScroll = false
+        }
+    }
+
+    private func updateCategoryFromScroll(_ index: Int) {
+        guard index != selectedCategory else { return }
+        isUpdatingFromScroll = true
+        withAnimation {
+            selectedCategory = index
+        }
+        DispatchQueue.main.async {
+            isUpdatingFromScroll = false
         }
     }
 
@@ -88,58 +117,55 @@ struct SymbolGridView: View {
         GeometryReader { outerGeo in
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 0) {
-                        ForEach(0..<categories.count, id: \.self) { catIdx in
-                            GeometryReader { geo in
-                                LazyHGrid(rows: rows, spacing: 24) {
-                                    ForEach(symbolsForCategory(catIdx).enumerated().map { $0 }, id: \ .offset) { idx, symbol in
-                                        Button(action: {
-                                            tempSelectedSymbol = symbol
-                                        }) {
-                                            ZStack {
-                                                if tempSelectedSymbol == symbol {
-                                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                                        .fill(Color(.systemGray5))
-                                                        .frame(width: 52, height: 52)
-                                                }
-                                                Image(systemName: symbol)
-                                                    .resizable()
-                                                    .scaledToFit()
-                                                    .frame(width: 36, height: 36)
-                                                    .foregroundColor(.gray)
-                                            }
-                                            .frame(width: 52, height: 52)
-                                        }
-                                        .id(catIdx * 1000 + idx)
-                                        .buttonStyle(PlainButtonStyle())
+                    LazyHGrid(rows: rows, spacing: columnSpacing) {
+                        ForEach(Array(allSymbols.enumerated()), id: \.offset) { index, symbol in
+                            Button {
+                                tempSelectedSymbol = symbol
+                            } label: {
+                                ZStack {
+                                    if tempSelectedSymbol == symbol {
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(Color(.systemGray5))
+                                            .frame(width: symbolSize, height: symbolSize)
                                     }
+                                    Image(systemName: symbol)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 36, height: 36)
+                                        .foregroundColor(.gray)
                                 }
-                                .padding()
-                                .onAppear {
-                                    sectionFrames[catIdx] = geo.frame(in: .global)
-                                }
-                                .onChange(of: geo.frame(in: .global)) { newFrame in
-                                    sectionFrames[catIdx] = newFrame
-                                    updateSelectedCategory(visibleFrame: outerGeo.frame(in: .global))
-                                }
+                                .frame(width: symbolSize, height: symbolSize)
                             }
-                            .frame(width: max(outerGeo.size.width, CGFloat((symbolsForCategory(catIdx).count + 3) / 4) * (52 + 24)))
+                            .id(index)
+                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(gridPadding)
+                }
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.contentOffset.x
+                } action: { _, newOffset in
+                    guard !isProgrammaticScroll else { return }
+                    updateCategoryFromScroll(categoryIndex(forScrollOffset: newOffset))
                 }
                 .onAppear {
                     scrollProxy = proxy
                     tempSelectedSymbol = selectedSymbolName ?? "plus.square"
+                    if let index = symbolIndex(for: tempSelectedSymbol) {
+                        DispatchQueue.main.async {
+                            scrollToSymbol(at: index, animated: false)
+                        }
+                    }
                 }
             }
             .frame(height: 4 * 44 + 3 * 24 + 32)
         }
+        .frame(height: 4 * 44 + 3 * 24 + 32)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Selected icon preview
                 if let selected = tempSelectedSymbol {
                     Image(systemName: selected)
                         .resizable()
@@ -150,7 +176,6 @@ struct SymbolGridView: View {
                         .padding(.bottom, name != nil ? 40 : 152)
                         .fontWeight(.semibold)
                 }
-                // Name field below icon if binding provided
                 if let name = name {
                     TextField("", text: name)
                         .font(.title3)
@@ -165,23 +190,16 @@ struct SymbolGridView: View {
                         .padding(.bottom, 88)
                         .padding(.horizontal)
                 }
-                // Category picker
                 Picker("Category", selection: $selectedCategory) {
-                    ForEach(0..<categories.count, id: \.self) { i in
-                        Text(categories[i])
+                    ForEach(0..<categories.count, id: \.self) { index in
+                        Text(categories[index]).tag(index)
                     }
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
-                .animation(.default, value: selectedCategory)
-                .onChange(of: selectedCategory) { newValue in
-                    isProgrammaticScroll = true
-                    withAnimation {
-                        scrollProxy?.scrollTo(newValue * 1000, anchor: .leading)
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        isProgrammaticScroll = false
-                    }
+                .onChange(of: selectedCategory) { _, newValue in
+                    guard !isUpdatingFromScroll else { return }
+                    jumpToCategory(newValue)
                 }
                 .padding(.bottom, 8)
                 symbolGrid
@@ -192,10 +210,12 @@ struct SymbolGridView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button(role: .close) {
+                    dismiss()
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(confirmButtonLabel) {
+                Button(role: .confirm) {
                     selectedSymbolName = tempSelectedSymbol
                     didConfirm = true
                     dismiss()

@@ -27,32 +27,38 @@ struct ContentView: View {
     @Query(sort: [SortDescriptor(\Counter.order)]) private var allCounters: [Counter]
     @State private var searchText = ""
     @State private var showAddSheet = false
+    @State private var addCounterSheetDetent: PresentationDetent = .large
+    @State private var editCounterSheetDetent: PresentationDetent = .large
     @State private var showNewCollectionSheet = false
     @State private var selectedCounter: Counter?
     @State private var dragOverSection: UUID? = nil
     @State private var dragOverIndex: (collection: UUID?, index: Int)? = nil
     @State private var draggingCounterID: UUID? = nil
     @State private var isUnassignedHeaderDropTarget: Bool = false
-    @State private var showingEditSheet = false
     @State private var counterToEdit: Counter? = nil
     @State private var showingDeleteConfirmation = false
     @State private var counterToDelete: Counter? = nil
-    @State private var showingEditCollectionSheet = false
     @State private var collectionToEdit: CounterCollection? = nil
     @State private var showingDeleteCollectionConfirmation = false
     @State private var collectionToDelete: CounterCollection? = nil
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack() {
-                    unassignedSection
-                    ForEach(filteredCollections) { collection in
-                        collectionSection(collection)
+            Group {
+                if hasNoSearchResults {
+                    SearchNoResultsView(searchTerm: trimmedSearchText)
+                } else {
+                    ScrollView {
+                        VStack() {
+                            unassignedSection
+                            ForEach(filteredCollections) { collection in
+                                collectionSection(collection)
+                            }
+                        }
+                        .padding(.vertical, 24)
+                        .padding(.horizontal, 12)
                     }
                 }
-                .padding(.vertical, 24)
-                .padding(.horizontal, 12)
             }
             .searchable(text: $searchText, prompt: "Search counters")
             .navigationTitle("Counters")
@@ -81,6 +87,12 @@ struct ContentView: View {
                     AddCounterView(collections: collections)
                         .environment(\.modelContext, context)
                 }
+                .presentationDetents([.medium, .large], selection: $addCounterSheetDetent)
+            }
+            .onChange(of: showAddSheet) { _, isShowing in
+                if isShowing {
+                    addCounterSheetDetent = .large
+                }
             }
             .sheet(isPresented: $showNewCollectionSheet) {
                 NavigationStack {
@@ -92,19 +104,23 @@ struct ContentView: View {
                 }
                 .presentationDetents([.medium, .large])
             }
-            .sheet(isPresented: $showingEditSheet) {
-                if let counter = counterToEdit {
-                    NavigationStack {
-                        EditCounterView(counter: counter)
-                    }
+            .sheet(item: $counterToEdit) { counter in
+                NavigationStack {
+                    EditCounterView(counter: counter, collections: collections)
+                        .environment(\.modelContext, context)
+                }
+                .presentationDetents([.medium, .large], selection: $editCounterSheetDetent)
+            }
+            .onChange(of: counterToEdit) { _, counter in
+                if counter != nil {
+                    editCounterSheetDetent = .large
                 }
             }
-            .sheet(isPresented: $showingEditCollectionSheet) {
-                if let collection = collectionToEdit {
-                    NavigationStack {
-                        EditCollectionView(collection: collection)
-                    }
+            .sheet(item: $collectionToEdit) { collection in
+                NavigationStack {
+                    EditCollectionView(collection: collection)
                 }
+                .presentationDetents([.medium, .large])
             }
             .confirmationDialog("Delete Counter?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
@@ -190,7 +206,7 @@ struct ContentView: View {
                                 return true
                             },
                             dragOverIndex: $dragOverIndex,
-                            onEdit: { counterToEdit = counter; showingEditSheet = true },
+                            onEdit: { counterToEdit = counter },
                             onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
                         )
                         .animation(.easeInOut, value: counter.order)
@@ -211,7 +227,9 @@ struct ContentView: View {
     }
     
     private func collectionSection(_ collection: CounterCollection) -> some View {
-        let counters = collection.counters.sorted(by: { $0.order < $1.order })
+        let counters = collection.counters
+            .filter { matchesSearch($0) }
+            .sorted(by: { $0.order < $1.order })
         return VStack(alignment: .leading, spacing: 0) {
             sectionHeader(
                 title: collection.name,
@@ -229,7 +247,6 @@ struct ContentView: View {
             .contextMenu {
                 Button {
                     collectionToEdit = collection
-                    showingEditCollectionSheet = true
                 } label: {
                     Label("Edit", systemImage: "pencil")
                 }
@@ -262,7 +279,7 @@ struct ContentView: View {
                             return true
                         },
                         dragOverIndex: $dragOverIndex,
-                        onEdit: { counterToEdit = counter; showingEditSheet = true },
+                        onEdit: { counterToEdit = counter },
                         onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
                     )
                     .animation(.easeInOut, value: counter.order)
@@ -282,10 +299,17 @@ struct ContentView: View {
     }
     
     // MARK: - Filtering
-    
+
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var hasNoSearchResults: Bool {
+        !trimmedSearchText.isEmpty && !allCounters.contains(where: matchesSearch)
+    }
+
     private var filteredCollections: [CounterCollection] {
-        let trimmed = searchText.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
+        if trimmedSearchText.isEmpty {
             return collections
         } else {
             return collections.filter { collection in
@@ -294,7 +318,7 @@ struct ContentView: View {
         }
     }
     private func matchesSearch(_ counter: Counter) -> Bool {
-        searchText.trimmingCharacters(in: .whitespaces).isEmpty || counter.name.localizedCaseInsensitiveContains(searchText)
+        trimmedSearchText.isEmpty || counter.name.localizedCaseInsensitiveContains(trimmedSearchText)
     }
     
     // MARK: - Move and Drop Logic

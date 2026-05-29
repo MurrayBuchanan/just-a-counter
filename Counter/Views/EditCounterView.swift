@@ -1,160 +1,223 @@
 import SwiftUI
+import SwiftData
 
 struct EditCounterView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @Bindable var counter: Counter
-    
+
+    let collections: [CounterCollection]
+
     @State private var name: String
+    @State private var value: Int
     @State private var selectedThemeName: String
     @State private var iconName: String?
+    @State private var selectedLayout: CounterLayoutStyle
+    @State private var selectedCollection: CounterCollection?
     @State private var showingSymbolPicker = false
     @State private var dailyIncrement: Int
     @State private var step: Int
+    @State private var hasGoal: Bool
     @State private var goalValue: Int
-    @State private var goalDate: Date
     @State private var isCountingUp: Bool
+    @State private var customiseLayout: Bool
     @State private var didConfirm = false
-    
-    init(counter: Counter) {
+    @FocusState private var focusedNumberField: NumberField?
+
+    private enum NumberField {
+        case startValue, dailyIncrement, stepSize, goalValue
+    }
+
+    init(counter: Counter, collections: [CounterCollection]) {
         self.counter = counter
+        self.collections = collections
         _name = State(initialValue: counter.name)
+        _value = State(initialValue: counter.value)
         _selectedThemeName = State(initialValue: counter.themeName)
         _iconName = State(initialValue: counter.iconName)
+        _selectedLayout = State(initialValue: counter.layout)
+        _selectedCollection = State(initialValue: counter.collection)
         _dailyIncrement = State(initialValue: counter.dailyIncrement)
         _step = State(initialValue: counter.step)
+        _hasGoal = State(initialValue: counter.goalValue != nil)
         _goalValue = State(initialValue: counter.goalValue ?? 1)
-        _goalDate = State(initialValue: counter.goalDate ?? Date())
         _isCountingUp = State(initialValue: counter.isCountingUp)
+        _customiseLayout = State(initialValue: counter.layout != .standard)
     }
-    
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        Form {
-            Section("Details") {
-                TextField("Name", text: $name)
-                
-                Stepper(value: $dailyIncrement, in: 1...100) {
-                    HStack {
-                        Text("Daily Increment")
-                        Spacer()
-                        Text("\(dailyIncrement)")
-                    }
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $name)
+
+                    StepperNumberField(
+                        title: "Initial Value",
+                        value: $value,
+                        range: 0...9999,
+                        focus: $focusedNumberField,
+                        field: .startValue
+                    )
+
+                    StepperNumberField(
+                        title: "Per Tap",
+                        value: $step,
+                        range: 1...100,
+                        focus: $focusedNumberField,
+                        field: .stepSize
+                    )
+
+                    StepperNumberField(
+                        title: "Per Day",
+                        value: $dailyIncrement,
+                        range: 0...100,
+                        focus: $focusedNumberField,
+                        field: .dailyIncrement
+                    )
+                } header: {
+                    Text("Details")
+                } footer: {
+                    Text("Per tap is how much + and − change the count. Per day is how much is added automatically each day.")
                 }
-                
-                Stepper(value: $step, in: 1...100) {
-                    HStack {
-                        Text("Step Size")
-                        Spacer()
-                        Text("\(step)")
-                    }
-                }
-                
-            }
-            
-            Section("Goal") {
-                Toggle("Set Goal", isOn: Binding(
-                    get: { counter.goalValue != nil },
-                    set: { hasGoal in
-                        if !hasGoal {
-                            counter.goalValue = nil
-                            counter.goalDate = nil
-                        } else {
-                            counter.goalValue = goalValue
-                            counter.goalDate = goalDate
-                        }
-                    }
-                ))
-                
-                if counter.goalValue != nil {
-                    Stepper(value: $goalValue, in: 1...9999) {
-                        HStack {
-                            Text("Target Value")
-                            Spacer()
-                            Text("\(goalValue)")
-                        }
-                    }
-                    
-                    DatePicker("Target Date", selection: $goalDate, displayedComponents: .date)
-                    
-                    Toggle("Count Up", isOn: $isCountingUp)
-                }
-            }
-            
-            Section("Design") {
-                Button {
-                    showingSymbolPicker = true
-                } label: {
-                    HStack {
-                        Text("Icon")
-                        Spacer()
-                        if let icon = iconName {
-                            Image(systemName: icon)
-                                .foregroundColor(ThemeManager.theme(for: selectedThemeName).primaryColor)
-                        } else {
-                            Text("None")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            
-                let columns = Array(repeating: GridItem(.fixed(40), spacing: 16), count: 6)
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Theme.allThemes.prefix(12)) { theme in
-                        ZStack {
-                            Circle()
-                                .fill(theme.gradient)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 2)
-                                )
-                                .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
-                                .onTapGesture {
-                                    selectedThemeName = theme.id
-                                }
-                            if selectedThemeName == theme.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.white)
-                                    .background(Circle().fill(Color.accentColor).frame(width: 16, height: 16))
-                                    .frame(width: 16, height: 16)
-                                    .offset(x: 8, y: -8)
+
+                if !collections.isEmpty {
+                    Section("Assign to Folder") {
+                        Picker("Folder", selection: $selectedCollection) {
+                            Text("None").tag(Optional<CounterCollection>(nil))
+                            ForEach(collections.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) { collection in
+                                Text(collection.name).tag(Optional(collection))
                             }
                         }
                     }
                 }
-                .padding(.vertical, 4)
-            }
-        }
-        .navigationTitle("Edit Counter")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    dismiss()
+
+                Section {
+                    Toggle("Set Goal", isOn: $hasGoal)
+
+                    if hasGoal {
+                        StepperNumberField(
+                            title: "Target Value",
+                            value: $goalValue,
+                            range: 1...9999,
+                            focus: $focusedNumberField,
+                            field: .goalValue
+                        )
+
+                        Picker("Direction", selection: $isCountingUp) {
+                            Text("Count Up").tag(true)
+                            Text("Count Down").tag(false)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                } header: {
+                    Text("Goal")
+                } footer: {
+                    if hasGoal {
+                        Text(isCountingUp
+                             ? "Count up until the counter reaches the target."
+                             : "Count down until the counter reaches zero.")
+                    }
+                }
+
+                Section {
+                    Toggle("Customise Layout", isOn: $customiseLayout)
+
+                    if customiseLayout {
+                        LayoutStylePicker(selection: $selectedLayout)
+                    }
+
+                    Button {
+                        showingSymbolPicker = true
+                    } label: {
+                        HStack {
+                            Text("Icon")
+                            Spacer()
+                            if let icon = iconName {
+                                Image(systemName: icon)
+                                    .foregroundColor(ThemeManager.theme(for: selectedThemeName).primaryColor)
+                            } else {
+                                Text("None")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    ThemeGrid(themes: Theme.allThemes, selectedThemeName: $selectedThemeName)
+                } header: {
+                    Text("Design")
                 }
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    saveChanges()
-                    dismiss()
+            .navigationTitle("Edit Counter")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close) {
+                        dismiss()
+                    }
                 }
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) {
+                        saveChanges()
+                    }
+                    .disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        focusedNumberField = nil
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showingSymbolPicker) {
-            NavigationStack {
-                SymbolGridView(selectedSymbolName: $iconName, name: nil, didConfirm: $didConfirm, confirmButtonLabel: "Select", navigationLabel: "Choose Icon")
+            .sheet(isPresented: $showingSymbolPicker) {
+                NavigationStack {
+                    SymbolGridView(selectedSymbolName: $iconName, didConfirm: $didConfirm, navigationLabel: "Choose Icon")
+                }
             }
         }
     }
-    
+
     private func saveChanges() {
         counter.name = name
+        counter.value = value
         counter.themeName = selectedThemeName
         counter.iconName = iconName
+        counter.layout = customiseLayout ? selectedLayout : .standard
         counter.dailyIncrement = dailyIncrement
         counter.step = step
-        counter.goalValue = counter.goalValue != nil ? goalValue : nil
-        counter.goalDate = counter.goalValue != nil ? goalDate : nil
-        counter.isCountingUp = isCountingUp
+        counter.goalValue = hasGoal ? goalValue : nil
+        counter.goalDate = nil
+        counter.isCountingUp = hasGoal ? isCountingUp : true
+
+        updateCollectionAssignment()
+        dismiss()
     }
-} 
+
+    private func updateCollectionAssignment() {
+        let oldCollection = counter.collection
+        let newCollection = selectedCollection
+
+        guard oldCollection?.uuid != newCollection?.uuid else { return }
+
+        if let oldCollection {
+            var oldCounters = oldCollection.counters.sorted(by: { $0.order < $1.order })
+            oldCounters.removeAll { $0.uuid == counter.uuid }
+            for (idx, c) in oldCounters.enumerated() { c.order = idx }
+            oldCollection.counters = oldCounters
+        }
+
+        counter.collection = newCollection
+
+        if let newCollection {
+            var newCounters = newCollection.counters.sorted(by: { $0.order < $1.order })
+            if !newCounters.contains(where: { $0.uuid == counter.uuid }) {
+                newCounters.append(counter)
+            }
+            for (idx, c) in newCounters.enumerated() { c.order = idx }
+            newCollection.counters = newCounters
+        }
+    }
+}
