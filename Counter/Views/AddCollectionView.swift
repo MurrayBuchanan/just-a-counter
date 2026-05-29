@@ -3,17 +3,35 @@ import SwiftUI
 struct AddCollectionView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name: String = ""
-    @State private var iconName: String? = "folder"
-    @State private var didConfirm = false
-    var onAdd: (String, String?) -> Void
+    var onAdd: (String) -> Void
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
-        SymbolGridView(selectedSymbolName: $iconName, name: $name, didConfirm: $didConfirm, confirmButtonLabel: "Add", navigationLabel: "New Collection")
-            .onChange(of: didConfirm) { newValue in
-                if newValue {
-                    onAdd(name, iconName)
-                    dismiss()
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Name", text: $name)
                 }
             }
+            .navigationTitle("New Folder")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(role: .close) {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(role: .confirm) {
+                        onAdd(name)
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
     }
-} 
+}

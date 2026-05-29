@@ -35,7 +35,6 @@ struct ContentView: View {
     @State private var isUnassignedHeaderDropTarget: Bool = false
     @State private var showingEditSheet = false
     @State private var counterToEdit: Counter? = nil
-    @State private var showingReorderAlert = false
     @State private var showingDeleteConfirmation = false
     @State private var counterToDelete: Counter? = nil
     @State private var showingEditCollectionSheet = false
@@ -55,10 +54,12 @@ struct ContentView: View {
                 .padding(.vertical, 24)
                 .padding(.horizontal, 12)
             }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search counters")
+            .searchable(text: $searchText, prompt: "Search counters")
             .navigationTitle("Counters")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                ToolbarItem(placement: .bottomBar) {
                     Menu {
                         Button {
                             showAddSheet = true
@@ -83,12 +84,13 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showNewCollectionSheet) {
                 NavigationStack {
-                    AddCollectionView(onAdd: { name, iconName in
+                    AddCollectionView(onAdd: { name in
                         let newOrder = (collections.map { $0.order }.max() ?? 0) + 1
-                        let collection = CounterCollection(name: name, order: newOrder, iconName: iconName)
+                        let collection = CounterCollection(name: name, order: newOrder)
                         context.insert(collection)
                     })
                 }
+                .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showingEditSheet) {
                 if let counter = counterToEdit {
@@ -129,11 +131,6 @@ struct ContentView: View {
                 }
             } message: {
                 Text("Are you sure you want to delete this collection? All counters in this collection will be unassigned.")
-            }
-            .alert("Move", isPresented: $showingReorderAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("To move or reorder, simply drag and drop the counter to a new position.")
             }
         }
         .task {
@@ -194,8 +191,7 @@ struct ContentView: View {
                             },
                             dragOverIndex: $dragOverIndex,
                             onEdit: { counterToEdit = counter; showingEditSheet = true },
-                            onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
-                            onReorder: { showingReorderAlert = true }
+                            onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
                         )
                         .animation(.easeInOut, value: counter.order)
                         // Drop indicator after each row
@@ -267,8 +263,7 @@ struct ContentView: View {
                         },
                         dragOverIndex: $dragOverIndex,
                         onEdit: { counterToEdit = counter; showingEditSheet = true },
-                        onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
-                        onReorder: { showingReorderAlert = true }
+                        onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
                     )
                     .animation(.easeInOut, value: counter.order)
                     // Drop indicator after each row
@@ -374,13 +369,7 @@ struct ContentView: View {
     @ViewBuilder
     private func sectionHeader(title: String, collection: CounterCollection?, isDropTarget: Bool, isTargeted: Binding<Bool>? = nil, onDrop: (([NSItemProvider]) -> Bool)? = nil) -> some View {
         let header = HStack(spacing: 12) {
-            if let collection = collection {
-                Image(systemName: collection.iconName ?? "folder")
-                    .font(.system(size: 20))
-                    .foregroundColor(.accentColor)
-                    .frame(width: 24)
-                    .fontWeight(.semibold)
-            } else {
+            if collection == nil {
                 Image(systemName: "tray")
                     .font(.system(size: 20))
                     .foregroundColor(.secondary)
@@ -479,7 +468,6 @@ private struct CounterRowView: View {
     let counter: Counter
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
-    var onReorder: (() -> Void)? = nil
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var context
     @State private var isActive = false
@@ -552,11 +540,6 @@ private struct CounterRowView: View {
                 onEdit?()
             } label: {
                 Label("Edit", systemImage: "pencil")
-            }
-            Button {
-                onReorder?()
-            } label: {
-                Label("Move", systemImage: "arrow.right.arrow.left")
             }
             Button(role: .destructive) {
                 onDelete?()
@@ -689,11 +672,10 @@ private struct DraggableCounterRow: View {
     @Binding var dragOverIndex: (collection: UUID?, index: Int)?
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
-    var onReorder: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
-            CounterRowView(counter: counter, onEdit: onEdit, onDelete: onDelete, onReorder: onReorder)
+            CounterRowView(counter: counter, onEdit: onEdit, onDelete: onDelete)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
