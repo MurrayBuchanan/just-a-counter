@@ -7,4 +7,4 @@ The title explains what it is. I think it's important to keep track of everyday 
 This project is protected by an [MIT Licence](/LICENCE).
 
 ## Contribution
-To contribute to the project, check out [Contribution](CONTRIBUTION.md).
+To contribute to the project, check out [Contribution](CONTRIBUTING.md).
