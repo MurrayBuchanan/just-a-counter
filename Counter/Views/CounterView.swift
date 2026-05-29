@@ -16,7 +16,7 @@ struct CounterView: View {
     @State private var isGoalReached = false
     
     private var theme: Theme {
-        ThemeManager.shared.theme(for: counter)
+        ThemeManager.theme(for: counter)
     }
     
     var body: some View {

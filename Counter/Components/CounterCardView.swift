@@ -6,7 +6,7 @@ struct CounterCardView: View {
     var dropPosition: AllCountersViewModel.DropPosition = .none
     
     private var theme: Theme {
-        ThemeManager.shared.theme(for: counter)
+        ThemeManager.theme(for: counter)
     }
     
     var body: some View {
@@ -65,7 +65,7 @@ struct CounterCardView: View {
 struct CounterCardDragPreview: View {
     let counter: Counter
     private var theme: Theme {
-        ThemeManager.shared.theme(for: counter)
+        ThemeManager.theme(for: counter)
     }
     var body: some View {
         ZStack {

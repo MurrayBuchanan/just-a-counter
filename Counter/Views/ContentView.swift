@@ -55,7 +55,7 @@ struct ContentView: View {
                 .padding(.vertical, 24)
                 .padding(.horizontal, 12)
             }
-            .searchable(text: $searchText)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search counters")
             .navigationTitle("Counters")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -485,7 +485,7 @@ private struct CounterRowView: View {
     @State private var isActive = false
     
     private var theme: Theme {
-        ThemeManager.shared.theme(for: counter)
+        ThemeManager.theme(for: counter)
     }
     
     private var progress: Double {

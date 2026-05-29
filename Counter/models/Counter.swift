@@ -64,7 +64,7 @@ final class Counter {
         goalDate: Date? = nil,
         isCountingUp: Bool = true,
         order: Int = 0,
-        themeName: String = "Sunset",
+        themeName: String = "blue",
         collection: CounterCollection? = nil,
         uuid: UUID = UUID()
     ) {

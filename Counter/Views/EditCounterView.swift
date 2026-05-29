@@ -88,7 +88,7 @@ struct EditCounterView: View {
                         Spacer()
                         if let icon = iconName {
                             Image(systemName: icon)
-                                .foregroundColor(ThemeManager.shared.theme(for: selectedThemeName).primaryColor)
+                                .foregroundColor(ThemeManager.theme(for: selectedThemeName).primaryColor)
                         } else {
                             Text("None")
                                 .foregroundColor(.secondary)
@@ -109,9 +109,9 @@ struct EditCounterView: View {
                                 )
                                 .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
                                 .onTapGesture {
-                                    selectedThemeName = theme.name
+                                    selectedThemeName = theme.id
                                 }
-                            if selectedThemeName == theme.name {
+                            if selectedThemeName == theme.id {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.white)
                                     .background(Circle().fill(Color.accentColor).frame(width: 16, height: 16))

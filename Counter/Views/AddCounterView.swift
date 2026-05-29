@@ -19,7 +19,7 @@ struct AddCounterView: View {
     @State private var dailyIncrement = 1
     @State private var step: Int = 1
     @State private var iconName: String? = "plus.square"
-    @State private var selectedThemeName: String = "Sunset"
+    @State private var selectedThemeName: String = "blue"
     @State private var showingSymbolPicker = false
     
     // Goal-related states
@@ -98,7 +98,7 @@ struct AddCounterView: View {
                             Spacer()
                             if let icon = iconName {
                                 Image(systemName: icon)
-                                    .foregroundColor(ThemeManager.shared.theme(for: selectedThemeName).primaryColor)
+                                    .foregroundColor(ThemeManager.theme(for: selectedThemeName).primaryColor)
                             } else {
                                 Text("None")
                                     .foregroundColor(.secondary)
@@ -165,7 +165,7 @@ struct ThemeGrid: View {
                 ZStack {
                     // Selected theme circle
                     Circle()
-                        .fill(selectedThemeName == theme.name ? theme.primaryColor : Color(.secondarySystemBackground))
+                        .fill(selectedThemeName == theme.id ? theme.primaryColor : Color(.secondarySystemBackground))
                         .frame(width: 40, height: 40)
                         
                     // Gap circle
@@ -179,7 +179,7 @@ struct ThemeGrid: View {
                 }
                 .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
                 .onTapGesture {
-                    selectedThemeName = theme.name
+                    selectedThemeName = theme.id
                 }
             }
         }
