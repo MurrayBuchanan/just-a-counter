@@ -106,32 +106,7 @@ struct AddCounterView: View {
                         }
                     }
 
-                    let columns = Array(repeating: GridItem(.fixed(40), spacing: 16), count: 6)
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(Theme.allThemes.prefix(12)) { theme in
-                            ZStack {
-                                Circle()
-                                    .fill(theme.gradient)
-                                    .frame(width: 32, height: 32)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white, lineWidth: 2)
-                                    )
-                                    .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
-                                    .onTapGesture {
-                                        selectedThemeName = theme.name
-                                    }
-                                if selectedThemeName == theme.name {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.white)
-                                        .background(Circle().fill(Color.accentColor).frame(width: 16, height: 16))
-                                        .frame(width: 16, height: 16)
-                                        .offset(x: 8, y: -8)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
+                    ThemeGrid(themes: Theme.allThemes, selectedThemeName: $selectedThemeName)
                 }
             }
             .navigationTitle("New Counter")
@@ -149,7 +124,7 @@ struct AddCounterView: View {
             }
             .sheet(isPresented: $showingSymbolPicker) {
                 NavigationStack {
-                    SymbolGridView(selectedSymbolName: $iconName, didConfirm: $didConfirm)
+                    SymbolGridView(selectedSymbolName: $iconName, didConfirm: $didConfirm, confirmButtonLabel: "Select", navigationLabel: "Choose Icon")
                 }
             }
         }
@@ -176,6 +151,39 @@ struct AddCounterView: View {
             collection.counters = counters
         }
         dismiss()
+    }
+}
+
+struct ThemeGrid: View {
+    let themes: [Theme]
+    @Binding var selectedThemeName: String
+
+    var body: some View {
+        let columns = Array(repeating: GridItem(.fixed(40), spacing: 16), count: 6)
+        LazyVGrid(columns: columns, spacing: 16) {
+            ForEach(themes.prefix(12)) { theme in
+                ZStack {
+                    // Selected theme circle
+                    Circle()
+                        .fill(selectedThemeName == theme.name ? theme.primaryColor : Color(.secondarySystemBackground))
+                        .frame(width: 40, height: 40)
+                        
+                    // Gap circle
+                    Circle()
+                        .fill(Color(.secondarySystemBackground))
+                        .frame(width: 34, height: 34)
+                    // Colour theme circle
+                    Circle()
+                        .fill(theme.gradient)
+                        .frame(width: 30, height: 30)
+                }
+                .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
+                .onTapGesture {
+                    selectedThemeName = theme.name
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

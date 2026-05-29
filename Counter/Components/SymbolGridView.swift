@@ -6,16 +6,16 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct SymbolGridView: View {
     @Binding var selectedSymbolName: String?
-    var name: Binding<String>? = nil // Make name optional
-    @Binding var didConfirm: Bool // NEW: Track confirmation
+    var name: Binding<String>? = nil
+    @Binding var didConfirm: Bool
+    var confirmButtonLabel: String
+    var navigationLabel: String
     @Environment(\.dismiss) var dismiss
 
     @State private var selectedCategory = 0
-    // Name field
     @State private var tempSelectedSymbol: String? = "plus.square"
     @State private var scrollProxy: ScrollViewProxy? = nil
     @State private var navTitle: String = "Objects"
@@ -26,7 +26,7 @@ struct SymbolGridView: View {
     let categories = ["Objects", "People", "Symbols"]
 
     let objectSymbols = [
-        "folder", "tray", "doc", "calendar", "envelope", "laptopcomputer", "printer", "externaldrive", "mic", "message", "paperplane", "creditcard", "keyboard", "archivebox", "cube", "pencil", "paintbrush", "hammer", "wrench", "iphone", "desktopcomputer", "cart", "gift", "tag", "star", "bell", "plus.square", "book", "bookmark", "camera", "car", "clock"
+        "folder", "plus.square", "tray", "doc", "envelope", "laptopcomputer", "printer", "externaldrive", "mic", "message", "paperplane", "creditcard", "keyboard", "archivebox", "cube", "pencil", "paintbrush", "hammer", "wrench", "iphone", "desktopcomputer", "cart", "gift", "tag", "star", "bell", "calendar", "book", "bookmark", "camera", "car", "clock"
     ]
     let peopleSymbols = [
         "person", "person.2", "person.3", "person.crop.circle", "person.crop.square", "bubble.left", "graduationcap", "briefcase", "person.badge.plus", "person.badge.minus", "person.2.circle", "person.3.sequence", "person.crop.rectangle", "person.crop.circle.badge.checkmark", "person.crop.circle.badge.xmark", "person.crop.circle.badge.exclam", "person.crop.circle.badge.questionmark", "person.icloud", "person.wave.2", "person.2.wave.2", "person.crop.artframe", "person.crop.square.filled.and.at.rectangle", "person.text.rectangle", "person.icloud"
@@ -130,8 +130,6 @@ struct SymbolGridView: View {
                 .onAppear {
                     scrollProxy = proxy
                     tempSelectedSymbol = selectedSymbolName ?? "plus.square"
-                    navTitle = categories[selectedCategory]
-                    if name != nil { nameFieldFocused = true }
                 }
             }
             .frame(height: 4 * 44 + 3 * 24 + 32)
@@ -150,6 +148,7 @@ struct SymbolGridView: View {
                         .foregroundColor(.gray)
                         .padding(.top, 136)
                         .padding(.bottom, name != nil ? 40 : 152)
+                        .fontWeight(.semibold)
                 }
                 // Name field below icon if binding provided
                 if let name = name {
@@ -163,7 +162,7 @@ struct SymbolGridView: View {
                                 .fill(Color(.secondarySystemBackground))
                         )
                         .focused($nameFieldFocused)
-                        .padding(.bottom, 96)
+                        .padding(.bottom, 88)
                         .padding(.horizontal)
                 }
                 // Category picker
@@ -180,39 +179,29 @@ struct SymbolGridView: View {
                     withAnimation {
                         scrollProxy?.scrollTo(newValue * 1000, anchor: .leading)
                     }
-                    navTitle = categories[newValue]
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         isProgrammaticScroll = false
                     }
                 }
                 .padding(.bottom, 8)
-                // Icon picking section
                 symbolGrid
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle(name != nil ? "New Collection" : "Counter Icon")
+        .navigationTitle(navigationLabel)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(name != nil ? "Add" : "Select") {
+                Button(confirmButtonLabel) {
                     selectedSymbolName = tempSelectedSymbol
-                    didConfirm = true // NEW: Signal confirmation
+                    didConfirm = true
                     dismiss()
                 }
                 .disabled(tempSelectedSymbol == nil || (name != nil && name!.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
         }
-    }
-}
-
-// Helper for scroll offset
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }

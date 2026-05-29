@@ -8,6 +8,9 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
+#if os(iOS)
+import UIKit
+#endif
 
 // Minimal working drop delegate for diagnostic purposes
 @MainActor
@@ -74,7 +77,7 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showNewCollectionSheet) {
                 NavigationStack {
-                    SymbolGridCollectionAddView(onAdd: { name, iconName in
+                    AddCollectionView(onAdd: { name, iconName in
                         let newOrder = (collections.map { $0.order }.max() ?? 0) + 1
                         let collection = CounterCollection(name: name, order: newOrder, iconName: iconName)
                         context.insert(collection)
@@ -147,56 +150,62 @@ struct ContentView: View {
     // MARK: - Sections
     
     private var unassignedSection: some View {
-        let counters = allCounters.filter { $0.collection == nil }.sorted(by: { $0.order < $1.order })
-        return VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(
-                title: "Unassigned",
-                collection: nil,
-                isDropTarget: isUnassignedHeaderDropTarget,
-                isTargeted: $isUnassignedHeaderDropTarget,
-                onDrop: { providers in
-                    handleDrop(to: nil, at: counters.count, providers: providers)
-                    return true
+        let counters = allCounters.filter { $0.collection == nil && matchesSearch($0) }.sorted(by: { $0.order < $1.order })
+        if counters.isEmpty {
+            return AnyView(EmptyView())
+        } else {
+            return AnyView(
+                VStack(alignment: .leading, spacing: 0) {
+                    sectionHeader(
+                        title: "Unassigned",
+                        collection: nil,
+                        isDropTarget: isUnassignedHeaderDropTarget,
+                        isTargeted: $isUnassignedHeaderDropTarget,
+                        onDrop: { providers in
+                            handleDrop(to: nil, at: counters.count, providers: providers)
+                            return true
+                        }
+                    )
+                    // Drop indicator before first row
+                    DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == 0)
+                        .onDrop(of: ["public.text"], isTargeted: Binding(
+                            get: { dragOverIndex?.collection == nil && dragOverIndex?.index == 0 },
+                            set: { isTargeted in dragOverIndex = isTargeted ? (nil, 0) : nil }
+                        ), perform: { providers in
+                            handleDrop(to: nil, at: 0, providers: providers)
+                            return true
+                        })
+                    ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
+                        DraggableCounterRow(
+                            counter: counter,
+                            collectionID: nil,
+                            idx: idx,
+                            isDropTarget: dragOverIndex?.collection == nil && dragOverIndex?.index == idx,
+                            onDrag: { draggingCounterID = counter.uuid },
+                            onDrop: { providers in
+                                handleDrop(to: nil, at: idx, providers: providers)
+                                return true
+                            },
+                            dragOverIndex: $dragOverIndex,
+                            onEdit: { counterToEdit = counter; showingEditSheet = true },
+                            onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
+                            onReorder: { showingReorderAlert = true }
+                        )
+                        .animation(.easeInOut, value: counter.order)
+                        // Drop indicator after each row
+                        DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1)
+                            .onDrop(of: ["public.text"], isTargeted: Binding(
+                                get: { dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1 },
+                                set: { isTargeted in dragOverIndex = isTargeted ? (nil, idx + 1) : nil }
+                            ), perform: { providers in
+                                handleDrop(to: nil, at: idx + 1, providers: providers)
+                                return true
+                            })
+                    }
                 }
+                .padding(.bottom, 24)
             )
-            // Drop indicator before first row
-            DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == 0)
-                .onDrop(of: ["public.text"], isTargeted: Binding(
-                    get: { dragOverIndex?.collection == nil && dragOverIndex?.index == 0 },
-                    set: { isTargeted in dragOverIndex = isTargeted ? (nil, 0) : nil }
-                ), perform: { providers in
-                    handleDrop(to: nil, at: 0, providers: providers)
-                    return true
-                })
-            ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
-                DraggableCounterRow(
-                    counter: counter,
-                    collectionID: nil,
-                    idx: idx,
-                    isDropTarget: dragOverIndex?.collection == nil && dragOverIndex?.index == idx,
-                    onDrag: { draggingCounterID = counter.uuid },
-                    onDrop: { providers in
-                        handleDrop(to: nil, at: idx, providers: providers)
-                        return true
-                    },
-                    dragOverIndex: $dragOverIndex,
-                    onEdit: { counterToEdit = counter; showingEditSheet = true },
-                    onDelete: { counterToDelete = counter; showingDeleteConfirmation = true },
-                    onReorder: { showingReorderAlert = true }
-                )
-                .animation(.easeInOut, value: counter.order)
-                // Drop indicator after each row
-                DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1)
-                    .onDrop(of: ["public.text"], isTargeted: Binding(
-                        get: { dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1 },
-                        set: { isTargeted in dragOverIndex = isTargeted ? (nil, idx + 1) : nil }
-                    ), perform: { providers in
-                        handleDrop(to: nil, at: idx + 1, providers: providers)
-                        return true
-                    })
-            }
         }
-        .padding(.bottom, 24)
     }
     
     private func collectionSection(_ collection: CounterCollection) -> some View {
@@ -364,11 +373,13 @@ struct ContentView: View {
                     .font(.system(size: 20))
                     .foregroundColor(.accentColor)
                     .frame(width: 24)
+                    .fontWeight(.semibold)
             } else {
                 Image(systemName: "tray")
                     .font(.system(size: 20))
                     .foregroundColor(.secondary)
                     .frame(width: 24)
+                    .fontWeight(.semibold)
             }
             Text(title)
                 .font(.headline)
@@ -379,11 +390,12 @@ struct ContentView: View {
             if let collection = collection {
                 Text("\(collection.counters.count)")
                     .font(.system(.body, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .fontWeight(.medium)
+                    .foregroundColor(Color(UIColor.secondaryLabel))
                 Button(action: { withAnimation { collection.isExpanded.toggle() } }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color(UIColor.secondaryLabel))
                         .rotationEffect(.degrees(collection.isExpanded ? 90 : 0))
                         .scaleEffect(collection.isExpanded ? 1.1 : 1.0)
                         .opacity(collection.isExpanded ? 1.0 : 0.85)
@@ -401,10 +413,19 @@ struct ContentView: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: 10))
         if let onDrop = onDrop, let isTargeted = isTargeted {
-            header.onDrop(of: ["public.text"], isTargeted: isTargeted, perform: { providers in
-                let result = onDrop(providers)
-                return result
-            })
+            header
+                .onDrop(of: ["public.text"], isTargeted: isTargeted, perform: { providers in
+                    let result = onDrop(providers)
+                    return result
+                })
+                .onChange(of: isTargeted.wrappedValue) { newValue in
+                    #if os(iOS)
+                    if newValue {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                    }
+                    #endif
+                }
         } else {
             header
         }
@@ -424,6 +445,14 @@ struct ContentView: View {
                 .animation(.easeInOut(duration: 0.18), value: isActive)
         }
         .contentShape(Rectangle())
+        .onChange(of: isActive) { newValue in
+            #if os(iOS)
+            if newValue {
+                let generator = UIImpactFeedbackGenerator(style: .soft)
+                generator.impactOccurred()
+            }
+            #endif
+        }
     }
 
     private func deleteCounter(_ counter: Counter) {
@@ -506,7 +535,7 @@ private struct CounterRowView: View {
             isActive = true
         }
         .background(
-            NavigationLink(destination: CounterDetailView(counter: counter), isActive: $isActive) {
+            NavigationLink(destination: CounterView(counter: counter), isActive: $isActive) {
                 EmptyView()
             }
             .opacity(0)
@@ -547,89 +576,6 @@ private struct CounterRowView: View {
         return Text("Failed to create preview: \(error.localizedDescription)")
     }
 }
-
-// MARK: - NewCollectionView
-//struct NewCollectionView: View {
-//    var onDismiss: () -> Void
-//    var onAdd: (String, String?) -> Void
-//    @State private var name = ""
-//    @State private var iconName: String? = "folder"
-//    @State private var showingSymbolPicker = false
-//    var body: some View {
-//        Form {
-//            Section(header: Text("Collection Name")) {
-//                TextField("Name", text: $name)
-//            }
-//            Section(header: Text("Icon")) {
-//                Button {
-//                    showingSymbolPicker = true
-//                } label: {
-//                    HStack {
-//                        Text("Icon")
-//                        Spacer()
-//                        if let icon = iconName {
-//                            Image(systemName: icon)
-//                                .foregroundColor(.accentColor)
-//                        } else {
-//                            Text("None")
-//                                .foregroundColor(.secondary)
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        .navigationTitle("New Collection")
-//        .toolbar {
-//            ToolbarItem(placement: .cancellationAction) {
-//                Button("Cancel") { onDismiss() }
-//            }
-//            ToolbarItem(placement: .confirmationAction) {
-//                Button("Add") {
-//                    onAdd(name, iconName)
-//                    onDismiss()
-//                }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-//            }
-//        }
-//        .sheet(isPresented: $showingSymbolPicker) {
-//            NavigationStack {
-//                SymbolGridView(selectedSymbolName: $iconName)
-//            }
-//        }
-//    }
-//}
-
-// MARK: - Drag & Drop Delegates
-//struct CounterDropDelegate: DropDelegate {
-//    let targetCounter: Counter
-//    let modelContext: ModelContext
-//    @Binding var isTargeted: Bool
-//    let parentCollection: CounterCollection
-//    @Binding var draggedCounter: Counter?
-//    
-//    func performDrop(info: DropInfo) -> Bool {
-//        guard let dragged = draggedCounter else { return false }
-//        // Move counter to new collection if needed
-//        if dragged.collection != parentCollection {
-//            dragged.collection?.counters.removeAll { $0 === dragged }
-//            dragged.collection = parentCollection
-//            parentCollection.counters.append(dragged)
-//        }
-//        // Reorder within collection
-//        let counters = parentCollection.counters.sorted(by: { $0.order < $1.order })
-//        if let from = counters.firstIndex(where: { $0 === dragged }), let to = counters.firstIndex(where: { $0 === targetCounter }) {
-//            var mutable = counters
-//            mutable.move(fromOffsets: IndexSet(integer: from), toOffset: to)
-//            for (index, counter) in mutable.enumerated() {
-//                counter.order = index
-//            }
-//        }
-//        draggedCounter = nil
-//        return true
-//    }
-//    func dropEntered(info: DropInfo) { isTargeted = true }
-//    func dropExited(info: DropInfo) { isTargeted = false }
-//    func dropUpdated(info: DropInfo) -> DropProposal? { .init(operation: .move) }
-//}
 
 struct CollectionEndDropDelegate: DropDelegate {
     let collection: CounterCollection
@@ -790,6 +736,10 @@ struct SectionDropDelegate: DropDelegate {
     let atIndex: Int
     let onDropComplete: () -> Void
 
+    // Track if haptic has been triggered for this entry
+    private var hasTriggeredHaptic = false
+    private var lastDropTargetID: UUID? = nil
+
     func performDrop(info: DropInfo) -> Bool {
         guard let itemProvider = info.itemProviders(for: ["public.text"]).first else { return false }
         itemProvider.loadItem(forTypeIdentifier: "public.text", options: nil) { (item, error) in
@@ -831,5 +781,15 @@ struct SectionDropDelegate: DropDelegate {
         }
         return true
     }
+
+    func dropEntered(info: DropInfo) {
+        // Haptic feedback when entering a collection drop target
+        #if os(iOS)
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+        #endif
+    }
+    func dropExited(info: DropInfo) {}
+    func dropUpdated(info: DropInfo) -> DropProposal? { .init(operation: .move) }
 }
 

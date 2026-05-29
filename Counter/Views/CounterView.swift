@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct CounterDetailView: View {
+struct CounterView: View {
     @Environment(\.colorScheme) var colorScheme
     @Bindable var counter: Counter
     @State private var showingEditSheet = false
@@ -29,7 +29,7 @@ struct CounterDetailView: View {
             VStack {
                 Spacer()
                 
-                // Value & Goal
+                // Value / Goal
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("\(counter.value)")
                         .font(.system(size: 72, weight: .bold, design: .rounded))
@@ -73,8 +73,10 @@ struct CounterDetailView: View {
         .sheet(isPresented: $showingEditSheet) {
             NavigationStack {
                 EditCounterView(counter: counter)
+                    .tint(.primary)
             }
         }
+        .tint(.white)
     }
     
     private func controlButton(label: String, action: @escaping () -> Void) -> some View {

@@ -142,7 +142,7 @@ struct EditCounterView: View {
         }
         .sheet(isPresented: $showingSymbolPicker) {
             NavigationStack {
-                SymbolGridView(selectedSymbolName: $iconName, name: nil, didConfirm: $didConfirm)
+                SymbolGridView(selectedSymbolName: $iconName, name: nil, didConfirm: $didConfirm, confirmButtonLabel: "Select", navigationLabel: "Choose Icon")
             }
         }
     }

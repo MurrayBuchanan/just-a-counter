@@ -25,7 +25,7 @@ class AllCountersViewModel {
     func handleCounterDrop(_ counter: Counter, info: DropInfo) -> Bool {
         guard let draggedCounter = draggedCounter else { return false }
         
-        // Don't do anything if dropping onto itself
+        // If dropped onto itself, do nothing
         if draggedCounter == counter { return false }
         
         // Reset the states

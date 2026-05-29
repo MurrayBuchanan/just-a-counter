@@ -3,7 +3,7 @@ import SwiftData
 import SwiftUI
 
 @Model
-final class CounterCollection {
+final class CounterCollection: Identifiable, Hashable {
     var name: String
     @Relationship(deleteRule: .cascade, inverse: \Counter.collection)
     var counters: [Counter] = []
@@ -18,6 +18,16 @@ final class CounterCollection {
         self.iconName = iconName
         self.uuid = uuid
     }
+    
+    var id: UUID { uuid }
+    
+    static func == (lhs: CounterCollection, rhs: CounterCollection) -> Bool {
+        lhs.uuid == rhs.uuid
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(uuid)
+    }
 }
 
 @Model
@@ -28,7 +38,6 @@ final class Counter {
     var step: Int
     var createdAt: Date
     var iconName: String?
-    var notes: String?
     var lastUpdated: Date
     var order: Int
     var uuid: UUID = UUID()
@@ -65,7 +74,6 @@ final class Counter {
         self.step = step
         self.createdAt = createdAt
         self.iconName = iconName
-        self.notes = notes
         self.lastUpdated = createdAt
         self.goalValue = goalValue
         self.goalDate = goalDate
