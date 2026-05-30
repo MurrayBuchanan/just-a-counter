@@ -16,10 +16,10 @@ struct CounterDropLocation: Equatable {
 /// Rejects counter drops on section headers so they cannot replace the title as a target.
 @MainActor
 final class CounterHeaderDropBlockDelegate: DropDelegate {
-    let onDropRejected: () -> Void
+    let onDropOnHeader: () -> Void
 
-    init(onDropRejected: @escaping () -> Void) {
-        self.onDropRejected = onDropRejected
+    init(onDropOnHeader: @escaping () -> Void) {
+        self.onDropOnHeader = onDropOnHeader
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -27,7 +27,7 @@ final class CounterHeaderDropBlockDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        onDropRejected()
+        onDropOnHeader()
         return false
     }
 }
@@ -41,6 +41,7 @@ final class CounterSectionDropDelegate: DropDelegate {
     let topInset: CGFloat
     @Binding var dragOverIndex: CounterDropLocation?
     let onPerformDrop: (Int) -> Void
+    let onInvalidDrop: () -> Void
 
     private var lastInsertionIndex: Int?
 
@@ -50,7 +51,8 @@ final class CounterSectionDropDelegate: DropDelegate {
         rowStride: CGFloat,
         topInset: CGFloat,
         dragOverIndex: Binding<CounterDropLocation?>,
-        onPerformDrop: @escaping (Int) -> Void
+        onPerformDrop: @escaping (Int) -> Void,
+        onInvalidDrop: @escaping () -> Void
     ) {
         self.collectionID = collectionID
         self.counterCount = counterCount
@@ -58,6 +60,7 @@ final class CounterSectionDropDelegate: DropDelegate {
         self.topInset = topInset
         self._dragOverIndex = dragOverIndex
         self.onPerformDrop = onPerformDrop
+        self.onInvalidDrop = onInvalidDrop
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
@@ -77,9 +80,15 @@ final class CounterSectionDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        onPerformDrop(insertionIndex(for: info.location))
-        dragOverIndex = nil
-        lastInsertionIndex = nil
+        defer {
+            dragOverIndex = nil
+            lastInsertionIndex = nil
+        }
+        guard let dragOverIndex, dragOverIndex.collectionID == collectionID else {
+            onInvalidDrop()
+            return false
+        }
+        onPerformDrop(dragOverIndex.index)
         return true
     }
 
@@ -95,7 +104,7 @@ final class CounterSectionDropDelegate: DropDelegate {
 
     private func insertionIndex(for location: CGPoint) -> Int {
         let adjustedY = max(0, location.y - topInset)
-        let raw = Int((adjustedY / rowStride).rounded(.down))
+        let raw = Int((adjustedY / rowStride).rounded())
         return min(max(raw, 0), counterCount)
     }
 }

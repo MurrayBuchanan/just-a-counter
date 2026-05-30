@@ -9,6 +9,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct CountersListView: View {
+    static let unassignedFolderTitle = "Unassigned"
+
     let collections: [CounterCollection]
     let allCounters: [Counter]
     let searchText: String
@@ -20,12 +22,11 @@ struct CountersListView: View {
 
     @State private var dragOverIndex: CounterDropLocation? = nil
     @State private var dragOverCollectionIndex: Int? = nil
-    @State private var draggingCounter: Counter? = nil
+    @State private var draggingCounterID: UUID? = nil
     @State private var draggingCollection: CounterCollection? = nil
-    @State private var counterDragOrigin: CounterDragOrigin? = nil
+    @State private var isEndingDragSession = false
 
     private let counterRowStride: CGFloat = CounterRowMetrics.rowStride
-    private let folderSectionTopInset: CGFloat = 10
     private let collectionHeaderStride: CGFloat = 56
 
     var body: some View {
@@ -33,23 +34,13 @@ struct CountersListView: View {
             LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
                 if showsUnassignedSection {
                     unassignedSection
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 collectionSectionsStack
             }
-            .animation(.easeInOut(duration: 0.2), value: showsUnassignedSection)
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
-            .onChange(of: dragOverIndex) { oldValue, newValue in
-                guard draggingCounter != nil, oldValue != nil, newValue == nil else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    if draggingCounter != nil, dragOverIndex == nil {
-                        endDragSession(didCommit: false)
-                    }
-                }
-            }
             .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
-                endDragSession(didCommit: false)
+                scheduleEndDragSession()
                 return false
             })
         }
@@ -59,28 +50,42 @@ struct CountersListView: View {
 
     private var unassignedSection: some View {
         CounterFolderSectionView(
-            title: "Unassigned",
+            title: Self.unassignedFolderTitle,
             collection: nil,
             counters: unassignedCounters,
             allCounters: allCounters,
             isReorderingEnabled: isReorderingEnabled,
             counterRowStride: counterRowStride,
-            folderSectionTopInset: folderSectionTopInset,
-            draggingCounter: $draggingCounter,
+            draggingCounterID: $draggingCounterID,
             draggingCollection: $draggingCollection,
             dragOverIndex: $dragOverIndex,
             onEditCounter: onEditCounter,
             onDeleteCounter: onDeleteCounter,
             onBeginCounterDrag: { counter, index in
-                beginCounterDrag(counter, in: nil, at: index)
+                beginCounterDrag(counter, at: index)
             },
             onEndDragSession: endDragSession
         )
     }
 
+    /// Omits the dragged folder from layout so only insertion gaps change list height.
+    private var listCollections: [CounterCollection] {
+        guard let draggingCollection else { return filteredCollections }
+        return filteredCollections.filter { $0.uuid != draggingCollection.uuid }
+    }
+
+    private var draggedCollectionSourceIndex: Int? {
+        guard let draggingCollection else { return nil }
+        return filteredCollections.firstIndex(where: { $0.uuid == draggingCollection.uuid })
+    }
+
+    private var dropTargetCollectionCount: Int {
+        draggingCollection == nil ? filteredCollections.count : listCollections.count
+    }
+
     private var collectionSectionsStack: some View {
         VStack(spacing: 16) {
-            ForEach(Array(filteredCollections.enumerated()), id: \.element.uuid) { idx, collection in
+            ForEach(Array(listCollections.enumerated()), id: \.element.uuid) { idx, collection in
                 if showsCollectionInsertionGap(before: idx) {
                     ReorderInsertionGap(height: collectionHeaderStride)
                 }
@@ -91,8 +96,7 @@ struct CountersListView: View {
                     allCounters: allCounters,
                     isReorderingEnabled: isReorderingEnabled,
                     counterRowStride: counterRowStride,
-                    folderSectionTopInset: folderSectionTopInset,
-                    draggingCounter: $draggingCounter,
+                    draggingCounterID: $draggingCounterID,
                     draggingCollection: $draggingCollection,
                     dragOverIndex: $dragOverIndex,
                     onEditCounter: onEditCounter,
@@ -100,25 +104,24 @@ struct CountersListView: View {
                     onEditCollection: onEditCollection,
                     onDeleteCollection: onDeleteCollection,
                     onBeginCounterDrag: { counter, index in
-                        beginCounterDrag(counter, in: collection, at: index)
+                        beginCounterDrag(counter, at: index)
                     },
                     onEndDragSession: endDragSession
                 )
             }
-            if showsCollectionInsertionGap(before: filteredCollections.count) {
+            if showsCollectionInsertionGap(before: listCollections.count) {
                 ReorderInsertionGap(height: collectionHeaderStride)
             }
         }
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: dragOverCollectionIndex)
         .modifier(CollectionSectionDropModifier(
             enabled: isReorderingEnabled,
-            collectionCount: filteredCollections.count,
+            collectionCount: dropTargetCollectionCount,
             rowStride: collectionHeaderStride,
             dragOverCollectionIndex: $dragOverCollectionIndex,
             shouldAcceptDrop: { draggingCollection != nil },
             onPerformDrop: { index in
                 guard let draggingCollection else {
-                    endDragSession(didCommit: false)
+                    scheduleEndDragSession()
                     return
                 }
                 let adjusted = CounterReorder.adjustedCollectionIndex(
@@ -126,47 +129,59 @@ struct CountersListView: View {
                     proposed: index,
                     collections: collections
                 )
-                CounterReorder.moveCollection(
-                    draggingCollection,
-                    to: adjusted,
-                    collections: collections
-                )
-                endDragSession(didCommit: true)
+                scheduleEndDragSession()
+                DispatchQueue.main.async {
+                    CounterReorder.moveCollection(
+                        draggingCollection,
+                        to: adjusted,
+                        collections: collections
+                    )
+                }
             }
         ))
     }
 
     // MARK: - Drag handling
 
-    private func beginCounterDrag(_ counter: Counter, in collection: CounterCollection?, at index: Int) {
+    private func beginCounterDrag(_ counter: Counter, at _: Int) {
         draggingCollection = nil
-        draggingCounter = counter
-        counterDragOrigin = CounterDragOrigin(collection: collection, index: index)
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            draggingCounterID = counter.uuid
+        }
     }
 
-    private func endDragSession(didCommit: Bool = false) {
-        guard draggingCounter != nil || draggingCollection != nil || counterDragOrigin != nil else {
-            return
+    private func scheduleEndDragSession() {
+        DispatchQueue.main.async {
+            endDragSession()
         }
+    }
 
-        if !didCommit, let draggingCounter, let origin = counterDragOrigin {
-            CounterReorder.moveCounter(
-                draggingCounter,
-                to: origin.collection,
-                at: origin.index,
-                allCounters: allCounters
-            )
-        }
+    /// Resets drag UI state only. SwiftData is unchanged until a valid drop commits via `moveCounter`.
+    private func endDragSession() {
+        guard !isEndingDragSession else { return }
+        guard draggingCounterID != nil || draggingCollection != nil else { return }
+        isEndingDragSession = true
 
-        draggingCounter = nil
+        draggingCounterID = nil
         draggingCollection = nil
         dragOverIndex = nil
         dragOverCollectionIndex = nil
-        counterDragOrigin = nil
+        isEndingDragSession = false
     }
 
     private func showsCollectionInsertionGap(before index: Int) -> Bool {
-        draggingCollection != nil && dragOverCollectionIndex == index
+        guard draggingCollection != nil else { return false }
+
+        if let dragOverCollectionIndex {
+            return dragOverCollectionIndex == index
+        }
+
+        // Keep source slot open while the drag hasn't entered a drop target yet.
+        if let source = draggedCollectionSourceIndex {
+            return index == source
+        }
+
+        return false
     }
 
     // MARK: - Filtering
@@ -179,14 +194,26 @@ struct CountersListView: View {
         trimmedSearchText.isEmpty
     }
 
+    private var unassignedFolderMatchesSearch: Bool {
+        !trimmedSearchText.isEmpty
+            && Self.unassignedFolderTitle.localizedCaseInsensitiveContains(trimmedSearchText)
+    }
+
     private var unassignedCounters: [Counter] {
-        allCounters
-            .filter { $0.collection == nil && matchesSearch($0) }
-            .sorted(by: { $0.order < $1.order })
+        let unassigned = allCounters.filter { $0.collection == nil }
+        let counters: [Counter]
+        if trimmedSearchText.isEmpty || unassignedFolderMatchesSearch {
+            counters = unassigned
+        } else {
+            counters = unassigned.filter { counterMatchesSearch($0) }
+        }
+        return counters.sorted(by: { $0.order < $1.order })
     }
 
     private var showsUnassignedSection: Bool {
-        !unassignedCounters.isEmpty || draggingCounter != nil
+        if trimmedSearchText.isEmpty { return true }
+        if unassignedFolderMatchesSearch { return true }
+        return !unassignedCounters.isEmpty
     }
 
     private var filteredCollections: [CounterCollection] {
@@ -194,18 +221,25 @@ struct CountersListView: View {
             return collections
         } else {
             return collections.filter { collection in
-                collection.counters.contains(where: { matchesSearch($0) })
+                collectionMatchesSearch(collection)
+                    || collection.counters.contains(where: { counterMatchesSearch($0) })
             }
         }
     }
 
-    private func matchesSearch(_ counter: Counter) -> Bool {
+    private func collectionMatchesSearch(_ collection: CounterCollection) -> Bool {
+        trimmedSearchText.isEmpty
+            || collection.name.localizedCaseInsensitiveContains(trimmedSearchText)
+    }
+
+    private func counterMatchesSearch(_ counter: Counter) -> Bool {
         trimmedSearchText.isEmpty || counter.name.localizedCaseInsensitiveContains(trimmedSearchText)
     }
 
     private func filteredCounters(in collection: CounterCollection) -> [Counter] {
-        collection.counters
-            .filter { matchesSearch($0) }
-            .sorted(by: { $0.order < $1.order })
+        let counters = collectionMatchesSearch(collection)
+            ? collection.counters
+            : collection.counters.filter { counterMatchesSearch($0) }
+        return counters.sorted(by: { $0.order < $1.order })
     }
 }

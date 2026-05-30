@@ -16,7 +16,7 @@ struct FolderSectionHeaderView: View {
     let isReorderingEnabled: Bool
     let isDragging: Bool
     let isCounterDragActive: Bool
-    var onDropRejected: (() -> Void)?
+    var onDropOnHeader: (() -> Void)?
     var onDragStart: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
@@ -50,8 +50,7 @@ struct FolderSectionHeaderView: View {
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
             .opacity(isDragging ? 0.35 : 1)
             .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
@@ -60,7 +59,7 @@ struct FolderSectionHeaderView: View {
         let interactiveLabel = label
             .modifier(CounterHeaderDropBlockModifier(
                 active: isReorderingEnabled && isCounterDragActive,
-                onDropRejected: { onDropRejected?() }
+                onDropOnHeader: { onDropOnHeader?() }
             ))
 
         if isReorderingEnabled, collection != nil, let onDragStart {

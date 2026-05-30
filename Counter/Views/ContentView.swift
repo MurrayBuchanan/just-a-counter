@@ -29,7 +29,7 @@ struct ContentView: View {
         NavigationStack {
             mainContent
                 .task { CounterWidgetData.warmCacheIfNeeded() }
-                .searchable(text: $searchText, prompt: "Search counters")
+                .searchable(text: $searchText, prompt: "Search")
                 .navigationTitle("Counters")
                 .toolbar { countersToolbar }
                 .sheet(isPresented: $showAddSheet) { addCounterSheet }
@@ -174,11 +174,12 @@ struct ContentView: View {
     }
 
     private var hasNoSearchResults: Bool {
-        !trimmedSearchText.isEmpty && !allCounters.contains(where: matchesSearch)
-    }
-
-    private func matchesSearch(_ counter: Counter) -> Bool {
-        trimmedSearchText.isEmpty || counter.name.localizedCaseInsensitiveContains(trimmedSearchText)
+        guard !trimmedSearchText.isEmpty else { return false }
+        let counterMatch = allCounters.contains { $0.name.localizedCaseInsensitiveContains(trimmedSearchText) }
+        let folderMatch = collections.contains { $0.name.localizedCaseInsensitiveContains(trimmedSearchText) }
+        let unassignedFolderMatch = CountersListView.unassignedFolderTitle
+            .localizedCaseInsensitiveContains(trimmedSearchText)
+        return !counterMatch && !folderMatch && !unassignedFolderMatch
     }
 
     private func deleteCounter(_ counter: Counter) {

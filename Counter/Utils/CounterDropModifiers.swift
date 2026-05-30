@@ -11,13 +11,13 @@ import UniformTypeIdentifiers
 /// Prevents counter drops from landing on section titles; insertion uses the list below.
 struct CounterHeaderDropBlockModifier: ViewModifier {
     let active: Bool
-    let onDropRejected: () -> Void
+    let onDropOnHeader: () -> Void
 
     func body(content: Content) -> some View {
         if active {
             content.onDrop(
                 of: [.text],
-                delegate: CounterHeaderDropBlockDelegate(onDropRejected: onDropRejected)
+                delegate: CounterHeaderDropBlockDelegate(onDropOnHeader: onDropOnHeader)
             )
         } else {
             content
@@ -34,6 +34,7 @@ struct CounterSectionDropModifier: ViewModifier {
     @Binding var dragOverIndex: CounterDropLocation?
     let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
+    let onInvalidDrop: () -> Void
 
     @ViewBuilder
     func body(content: Content) -> some View {
@@ -46,7 +47,8 @@ struct CounterSectionDropModifier: ViewModifier {
                     rowStride: rowStride,
                     topInset: topInset,
                     dragOverIndex: $dragOverIndex,
-                    onPerformDrop: onPerformDrop
+                    onPerformDrop: onPerformDrop,
+                    onInvalidDrop: onInvalidDrop
                 )
             )
         } else {

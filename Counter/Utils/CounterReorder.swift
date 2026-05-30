@@ -6,12 +6,6 @@
 //
 
 import SwiftData
-import SwiftUI
-
-struct CounterDragOrigin {
-    let collection: CounterCollection?
-    let index: Int
-}
 
 enum CounterReorder {
     static func adjustedInsertionIndex(
@@ -47,34 +41,36 @@ enum CounterReorder {
         at index: Int,
         allCounters: [Counter]
     ) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
-            if let oldCollection = counter.collection {
-                oldCollection.counters.removeAll { $0 === counter }
-                let oldCounters = oldCollection.counters.sorted(by: { $0.order < $1.order })
-                for (idx, c) in oldCounters.enumerated() { c.order = idx }
-                oldCollection.counters = oldCounters
-            } else {
-                let unassigned = allCounters.filter { $0.collection == nil }.sorted(by: { $0.order < $1.order })
-                let filtered = unassigned.filter { $0 !== counter }
-                for (idx, c) in filtered.enumerated() { c.order = idx }
-            }
+        let sourceCollection = counter.collection
 
-            counter.collection = collection
-            if let collection {
-                var counters = collection.counters.sorted(by: { $0.order < $1.order })
-                counters.removeAll { $0 === counter }
-                let safeIndex = min(max(index, 0), counters.count)
-                counters.insert(counter, at: safeIndex)
-                for (idx, c) in counters.enumerated() { c.order = idx }
-                collection.counters = counters
+        if sourceCollection !== collection {
+            if let sourceCollection {
+                sourceCollection.counters.removeAll { $0 === counter }
+                normalizeOrders(in: sourceCollection)
             } else {
-                var unassigned = allCounters.filter { $0.collection == nil && $0 !== counter }.sorted(by: { $0.order < $1.order })
-                let safeIndex = min(max(index, 0), unassigned.count)
-                unassigned.insert(counter, at: safeIndex)
-                for (idx, c) in unassigned.enumerated() {
-                    c.order = idx
-                    c.collection = nil
-                }
+                normalizeUnassignedOrders(allCounters: allCounters, excluding: counter)
+            }
+            counter.collection = collection
+        }
+
+        if let collection {
+            var ordered = collection.counters
+                .filter { $0 !== counter }
+                .sorted(by: { $0.order < $1.order })
+            let safeIndex = min(max(index, 0), ordered.count)
+            ordered.insert(counter, at: safeIndex)
+            normalizeOrders(for: ordered)
+            collection.counters = ordered
+            counter.collection = collection
+        } else {
+            var unassigned = allCounters
+                .filter { $0.collection == nil && $0 !== counter }
+                .sorted(by: { $0.order < $1.order })
+            let safeIndex = min(max(index, 0), unassigned.count)
+            unassigned.insert(counter, at: safeIndex)
+            for (idx, c) in unassigned.enumerated() {
+                c.order = idx
+                c.collection = nil
             }
         }
     }
@@ -85,14 +81,32 @@ enum CounterReorder {
         to index: Int,
         collections: [CounterCollection]
     ) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
-            var ordered = collections.sorted(by: { $0.order < $1.order })
-            ordered.removeAll { $0 === collection }
-            let safeIndex = min(max(index, 0), ordered.count)
-            ordered.insert(collection, at: safeIndex)
-            for (idx, col) in ordered.enumerated() {
-                col.order = idx
-            }
+        var ordered = collections.sorted(by: { $0.order < $1.order })
+        ordered.removeAll { $0 === collection }
+        let safeIndex = min(max(index, 0), ordered.count)
+        ordered.insert(collection, at: safeIndex)
+        for (idx, col) in ordered.enumerated() {
+            col.order = idx
+        }
+    }
+
+    private static func normalizeOrders(in collection: CounterCollection) {
+        normalizeOrders(for: collection.counters.sorted(by: { $0.order < $1.order }))
+        collection.counters = collection.counters.sorted(by: { $0.order < $1.order })
+    }
+
+    private static func normalizeOrders(for counters: [Counter]) {
+        for (idx, counter) in counters.enumerated() {
+            counter.order = idx
+        }
+    }
+
+    private static func normalizeUnassignedOrders(allCounters: [Counter], excluding counter: Counter) {
+        let unassigned = allCounters
+            .filter { $0.collection == nil && $0 !== counter }
+            .sorted(by: { $0.order < $1.order })
+        for (idx, c) in unassigned.enumerated() {
+            c.order = idx
         }
     }
 }
