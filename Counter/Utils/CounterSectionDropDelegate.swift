@@ -13,6 +13,25 @@ struct CounterDropLocation: Equatable {
     let index: Int
 }
 
+/// Rejects counter drops on section headers so they cannot replace the title as a target.
+@MainActor
+final class CounterHeaderDropBlockDelegate: DropDelegate {
+    let onDropRejected: () -> Void
+
+    init(onDropRejected: @escaping () -> Void) {
+        self.onDropRejected = onDropRejected
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .cancel)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        onDropRejected()
+        return false
+    }
+}
+
 /// Tracks insertion index from drag position within a folder section (Shortcuts-style gaps).
 @MainActor
 final class CounterSectionDropDelegate: DropDelegate {
@@ -21,7 +40,6 @@ final class CounterSectionDropDelegate: DropDelegate {
     let rowStride: CGFloat
     let topInset: CGFloat
     @Binding var dragOverIndex: CounterDropLocation?
-    let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
 
     private var lastInsertionIndex: Int?
@@ -32,7 +50,6 @@ final class CounterSectionDropDelegate: DropDelegate {
         rowStride: CGFloat,
         topInset: CGFloat,
         dragOverIndex: Binding<CounterDropLocation?>,
-        shouldAcceptDrop: @escaping () -> Bool,
         onPerformDrop: @escaping (Int) -> Void
     ) {
         self.collectionID = collectionID
@@ -40,18 +57,15 @@ final class CounterSectionDropDelegate: DropDelegate {
         self.rowStride = rowStride
         self.topInset = topInset
         self._dragOverIndex = dragOverIndex
-        self.shouldAcceptDrop = shouldAcceptDrop
         self.onPerformDrop = onPerformDrop
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard shouldAcceptDrop() else { return DropProposal(operation: .cancel) }
         updateInsertionIndex(for: info.location)
         return DropProposal(operation: .move)
     }
 
     func dropEntered(info: DropInfo) {
-        guard shouldAcceptDrop() else { return }
         updateInsertionIndex(for: info.location)
     }
 
@@ -63,7 +77,6 @@ final class CounterSectionDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        guard shouldAcceptDrop() else { return false }
         onPerformDrop(insertionIndex(for: info.location))
         dragOverIndex = nil
         lastInsertionIndex = nil
@@ -93,7 +106,6 @@ final class CollectionSectionDropDelegate: DropDelegate {
     let collectionCount: Int
     let rowStride: CGFloat
     @Binding var dragOverCollectionIndex: Int?
-    let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
 
     private var lastInsertionIndex: Int?
@@ -102,24 +114,20 @@ final class CollectionSectionDropDelegate: DropDelegate {
         collectionCount: Int,
         rowStride: CGFloat,
         dragOverCollectionIndex: Binding<Int?>,
-        shouldAcceptDrop: @escaping () -> Bool,
         onPerformDrop: @escaping (Int) -> Void
     ) {
         self.collectionCount = collectionCount
         self.rowStride = rowStride
         self._dragOverCollectionIndex = dragOverCollectionIndex
-        self.shouldAcceptDrop = shouldAcceptDrop
         self.onPerformDrop = onPerformDrop
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard shouldAcceptDrop() else { return DropProposal(operation: .cancel) }
         updateInsertionIndex(for: info.location)
         return DropProposal(operation: .move)
     }
 
     func dropEntered(info: DropInfo) {
-        guard shouldAcceptDrop() else { return }
         updateInsertionIndex(for: info.location)
     }
 
@@ -129,7 +137,6 @@ final class CollectionSectionDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        guard shouldAcceptDrop() else { return false }
         onPerformDrop(insertionIndex(for: info.location))
         dragOverCollectionIndex = nil
         lastInsertionIndex = nil

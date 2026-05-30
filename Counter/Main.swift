@@ -13,7 +13,7 @@ struct CounterApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .modelContainer(for: [Counter.self, CounterCollection.self])
         }
+        .modelContainer(SharedModelContainer.shared)
     }
 }

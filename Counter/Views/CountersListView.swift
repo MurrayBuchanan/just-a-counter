@@ -18,14 +18,13 @@ struct CountersListView: View {
     var onEditCollection: (CounterCollection) -> Void
     var onDeleteCollection: (CounterCollection) -> Void
 
-    @State private var dragOverSection: UUID? = nil
     @State private var dragOverIndex: CounterDropLocation? = nil
     @State private var dragOverCollectionIndex: Int? = nil
     @State private var draggingCounter: Counter? = nil
     @State private var draggingCollection: CounterCollection? = nil
-    @State private var isUnassignedHeaderDropTarget = false
+    @State private var counterDragOrigin: CounterDragOrigin? = nil
 
-    private let counterRowStride: CGFloat = 64
+    private let counterRowStride: CGFloat = CounterRowMetrics.rowStride
     private let folderSectionTopInset: CGFloat = 10
     private let collectionHeaderStride: CGFloat = 56
 
@@ -41,8 +40,16 @@ struct CountersListView: View {
             .animation(.easeInOut(duration: 0.2), value: showsUnassignedSection)
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
+            .onChange(of: dragOverIndex) { oldValue, newValue in
+                guard draggingCounter != nil, oldValue != nil, newValue == nil else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    if draggingCounter != nil, dragOverIndex == nil {
+                        endDragSession(didCommit: false)
+                    }
+                }
+            }
             .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
-                endDragSession()
+                endDragSession(didCommit: false)
                 return false
             })
         }
@@ -62,11 +69,11 @@ struct CountersListView: View {
             draggingCounter: $draggingCounter,
             draggingCollection: $draggingCollection,
             dragOverIndex: $dragOverIndex,
-            dragOverSection: $dragOverSection,
-            isUnassignedHeaderDropTarget: $isUnassignedHeaderDropTarget,
             onEditCounter: onEditCounter,
             onDeleteCounter: onDeleteCounter,
-            onCounterDrop: handleCounterDrop,
+            onBeginCounterDrag: { counter, index in
+                beginCounterDrag(counter, in: nil, at: index)
+            },
             onEndDragSession: endDragSession
         )
     }
@@ -75,7 +82,7 @@ struct CountersListView: View {
         VStack(spacing: 16) {
             ForEach(Array(filteredCollections.enumerated()), id: \.element.uuid) { idx, collection in
                 if showsCollectionInsertionGap(before: idx) {
-                    ReorderInsertionGap()
+                    ReorderInsertionGap(height: collectionHeaderStride)
                 }
                 CounterFolderSectionView(
                     title: collection.name,
@@ -88,18 +95,18 @@ struct CountersListView: View {
                     draggingCounter: $draggingCounter,
                     draggingCollection: $draggingCollection,
                     dragOverIndex: $dragOverIndex,
-                    dragOverSection: $dragOverSection,
-                    isUnassignedHeaderDropTarget: $isUnassignedHeaderDropTarget,
                     onEditCounter: onEditCounter,
                     onDeleteCounter: onDeleteCounter,
                     onEditCollection: onEditCollection,
                     onDeleteCollection: onDeleteCollection,
-                    onCounterDrop: handleCounterDrop,
+                    onBeginCounterDrag: { counter, index in
+                        beginCounterDrag(counter, in: collection, at: index)
+                    },
                     onEndDragSession: endDragSession
                 )
             }
             if showsCollectionInsertionGap(before: filteredCollections.count) {
-                ReorderInsertionGap()
+                ReorderInsertionGap(height: collectionHeaderStride)
             }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: dragOverCollectionIndex)
@@ -111,7 +118,7 @@ struct CountersListView: View {
             shouldAcceptDrop: { draggingCollection != nil },
             onPerformDrop: { index in
                 guard let draggingCollection else {
-                    endDragSession()
+                    endDragSession(didCommit: false)
                     return
                 }
                 let adjusted = CounterReorder.adjustedCollectionIndex(
@@ -124,70 +131,42 @@ struct CountersListView: View {
                     to: adjusted,
                     collections: collections
                 )
-                endDragSession()
+                endDragSession(didCommit: true)
             }
         ))
     }
 
     // MARK: - Drag handling
 
-    private func endDragSession() {
+    private func beginCounterDrag(_ counter: Counter, in collection: CounterCollection?, at index: Int) {
+        draggingCollection = nil
+        draggingCounter = counter
+        counterDragOrigin = CounterDragOrigin(collection: collection, index: index)
+    }
+
+    private func endDragSession(didCommit: Bool = false) {
+        guard draggingCounter != nil || draggingCollection != nil || counterDragOrigin != nil else {
+            return
+        }
+
+        if !didCommit, let draggingCounter, let origin = counterDragOrigin {
+            CounterReorder.moveCounter(
+                draggingCounter,
+                to: origin.collection,
+                at: origin.index,
+                allCounters: allCounters
+            )
+        }
+
         draggingCounter = nil
         draggingCollection = nil
         dragOverIndex = nil
-        dragOverSection = nil
         dragOverCollectionIndex = nil
-        isUnassignedHeaderDropTarget = false
+        counterDragOrigin = nil
     }
 
     private func showsCollectionInsertionGap(before index: Int) -> Bool {
         draggingCollection != nil && dragOverCollectionIndex == index
-    }
-
-    private func handleCounterDrop(to collection: CounterCollection?, at index: Int, providers: [NSItemProvider]) {
-        if let draggingCounter {
-            CounterReorder.moveCounter(
-                draggingCounter,
-                to: collection,
-                at: index,
-                allCounters: allCounters
-            )
-            endDragSession()
-            return
-        }
-        guard let provider = providers.first else {
-            endDragSession()
-            return
-        }
-        provider.loadItem(forTypeIdentifier: "public.text", options: nil) { item, _ in
-            let idString: String?
-            if let data = item as? Data {
-                idString = String(data: data, encoding: .utf8)
-            } else if let str = item as? String {
-                idString = str
-            } else {
-                idString = nil
-            }
-            guard let idString, let uuid = UUID(uuidString: idString) else {
-                DispatchQueue.main.async { endDragSession() }
-                return
-            }
-            DispatchQueue.main.async {
-                guard let counter = allCounters.first(where: { $0.uuid == uuid }) else {
-                    endDragSession()
-                    return
-                }
-                draggingCollection = nil
-                draggingCounter = counter
-                CounterReorder.moveCounter(
-                    counter,
-                    to: collection,
-                    at: index,
-                    allCounters: allCounters
-                )
-                endDragSession()
-            }
-        }
     }
 
     // MARK: - Filtering

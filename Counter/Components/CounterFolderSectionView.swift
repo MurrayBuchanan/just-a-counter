@@ -19,70 +19,117 @@ struct CounterFolderSectionView: View {
     @Binding var draggingCounter: Counter?
     @Binding var draggingCollection: CounterCollection?
     @Binding var dragOverIndex: CounterDropLocation?
-    @Binding var dragOverSection: UUID?
-    @Binding var isUnassignedHeaderDropTarget: Bool
 
     var onEditCounter: (Counter) -> Void
     var onDeleteCounter: (Counter) -> Void
     var onEditCollection: ((CounterCollection) -> Void)?
     var onDeleteCollection: ((CounterCollection) -> Void)?
-    var onCounterDrop: (CounterCollection?, Int, [NSItemProvider]) -> Void
-    var onEndDragSession: () -> Void
+    var onBeginCounterDrag: (Counter, Int) -> Void
+    var onEndDragSession: (Bool) -> Void
 
     private var collectionID: UUID? { collection?.uuid }
 
+    private var isDraggingFromThisSection: Bool {
+        guard let draggingCounter else { return false }
+        if let collection {
+            return draggingCounter.collection === collection
+        }
+        return draggingCounter.collection == nil
+    }
+
+    /// Excludes the dragged counter so its slot collapses while reordering.
+    private var displayCounters: [Counter] {
+        guard isDraggingFromThisSection else { return counters }
+        return counters.filter { $0.uuid != draggingCounter!.uuid }
+    }
+
+    private var draggedSourceIndex: Int? {
+        guard isDraggingFromThisSection else { return nil }
+        return counters.firstIndex(where: { $0.uuid == draggingCounter!.uuid })
+    }
+
+    private var dropTargetCounterCount: Int {
+        isDraggingFromThisSection ? displayCounters.count : counters.count
+    }
+
+    private func isDraggedAway(_ counter: Counter) -> Bool {
+        draggingCounter?.uuid == counter.uuid
+            && isDraggingFromThisSection
+            && dragOverIndex != nil
+    }
+
+    private func visibleInsertionIndex(forFullIndex index: Int) -> Int {
+        guard let source = draggedSourceIndex else { return index }
+        if index <= source { return index }
+        return index - 1
+    }
+
+    private func shouldShowDivider(afterIndex index: Int) -> Bool {
+        guard index < counters.count - 1 else { return false }
+        return !isDraggedAway(counters[index]) && !isDraggedAway(counters[index + 1])
+    }
+
     var body: some View {
         Section {
-            Divider()
-                .padding(.bottom, 6)
-            VStack(spacing: 8) {
-                ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
-                    if showsInsertionGap(before: idx) {
-                        ReorderInsertionGap()
+            VStack(spacing: 0) {
+                Divider()
+                    .padding(.bottom, 6)
+                VStack(spacing: 8) {
+                    ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
+                        let draggedAway = isDraggedAway(counter)
+
+                        if showsInsertionGap(before: visibleInsertionIndex(forFullIndex: idx)) {
+                            ReorderInsertionGap(height: counterRowStride)
+                        }
+                        DraggableCounterRow(
+                            counter: counter,
+                            isReorderingEnabled: isReorderingEnabled,
+                            onDragStart: {
+                                let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
+                                onBeginCounterDrag(counter, index)
+                            },
+                            onEdit: { onEditCounter(counter) },
+                            onDelete: { onDeleteCounter(counter) }
+                        )
+                        .frame(maxHeight: draggedAway ? 0 : nil)
+                        .opacity(draggedAway ? 0 : 1)
+                        .clipped()
+                        .allowsHitTesting(!draggedAway)
+                        .accessibilityHidden(draggedAway)
+                        if shouldShowDivider(afterIndex: idx) {
+                            Divider()
+                                .padding(.leading, CounterRowMetrics.titleLeadingInset)
+                        }
                     }
-                    DraggableCounterRow(
-                        counter: counter,
-                        isDragging: draggingCounter?.uuid == counter.uuid,
-                        isReorderingEnabled: isReorderingEnabled,
-                        onDragStart: {
-                            draggingCollection = nil
-                            draggingCounter = counter
-                        },
-                        onEdit: { onEditCounter(counter) },
-                        onDelete: { onDeleteCounter(counter) }
-                    )
+                    if showsInsertionGap(before: displayCounters.count) {
+                        ReorderInsertionGap(height: counterRowStride)
+                    }
                 }
-                if showsInsertionGap(before: counters.count) {
-                    ReorderInsertionGap()
-                }
+                .frame(minHeight: displayCounters.isEmpty && isReorderingEnabled ? counterRowStride : 0)
             }
+            .contentShape(Rectangle())
+            .animation(.spring(response: 0.32, dampingFraction: 0.86), value: draggingCounter?.uuid)
             .animation(.spring(response: 0.32, dampingFraction: 0.86), value: dragOverIndex)
             .modifier(CounterSectionDropModifier(
                 enabled: isReorderingEnabled,
                 collectionID: collectionID,
-                counterCount: counters.count,
+                counterCount: dropTargetCounterCount,
                 rowStride: counterRowStride,
                 topInset: folderSectionTopInset,
                 dragOverIndex: $dragOverIndex,
                 shouldAcceptDrop: { draggingCounter != nil },
                 onPerformDrop: { index in
                     guard let draggingCounter else {
-                        onEndDragSession()
+                        onEndDragSession(false)
                         return
                     }
-                    let adjusted = CounterReorder.adjustedInsertionIndex(
-                        for: draggingCounter,
-                        in: collection,
-                        proposed: index,
-                        destinationCounters: counters
-                    )
                     CounterReorder.moveCounter(
                         draggingCounter,
                         to: collection,
-                        at: adjusted,
+                        at: index,
                         allCounters: allCounters
                     )
-                    onEndDragSession()
+                    onEndDragSession(true)
                 }
             ))
         } header: {
@@ -92,11 +139,8 @@ struct CounterFolderSectionView: View {
                 counters: counters,
                 isReorderingEnabled: isReorderingEnabled,
                 isDragging: collection.map { draggingCollection?.uuid == $0.uuid } ?? false,
-                isTargeted: headerDropTargetBinding,
-                onDrop: isReorderingEnabled ? { providers in
-                    onCounterDrop(collection, counters.count, providers)
-                    return true
-                } : nil,
+                isCounterDragActive: draggingCounter != nil,
+                onDropRejected: { onEndDragSession(false) },
                 onDragStart: collection.map { col in
                     { draggingCounter = nil; draggingCollection = col }
                 },
@@ -104,16 +148,6 @@ struct CounterFolderSectionView: View {
                 onDelete: collection.flatMap { col in onDeleteCollection.map { delete in { delete(col) } } }
             )
         }
-    }
-
-    private var headerDropTargetBinding: Binding<Bool> {
-        if collectionID == nil {
-            return $isUnassignedHeaderDropTarget
-        }
-        return Binding(
-            get: { dragOverSection == collectionID },
-            set: { isTargeted in dragOverSection = isTargeted ? collectionID : nil }
-        )
     }
 
     private func showsInsertionGap(before index: Int) -> Bool {

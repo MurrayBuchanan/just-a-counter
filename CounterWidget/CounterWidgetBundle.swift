@@ -2,8 +2,6 @@
 //  CounterWidgetBundle.swift
 //  CounterWidget
 //
-//  Created by Murray Buchanan on 30/05/2026.
-//
 
 import WidgetKit
 import SwiftUI
@@ -12,6 +10,5 @@ import SwiftUI
 struct CounterWidgetBundle: WidgetBundle {
     var body: some Widget {
         CounterWidget()
-        CounterWidgetControl()
     }
 }

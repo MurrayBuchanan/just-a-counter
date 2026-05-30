@@ -113,6 +113,7 @@ struct CounterView: View {
         withAnimation {
             counter.value = newValue
             counter.lastUpdated = Date()
+            WidgetReloader.reloadAll()
         }
     }
     
@@ -120,6 +121,7 @@ struct CounterView: View {
         withAnimation {
             counter.value += amount * counter.step
             counter.lastUpdated = Date()
+            WidgetReloader.reloadAll()
         }
     }
 }

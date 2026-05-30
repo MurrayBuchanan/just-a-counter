@@ -10,22 +10,41 @@ import UniformTypeIdentifiers
 
 struct DraggableCounterRow: View {
     let counter: Counter
-    let isDragging: Bool
     let isReorderingEnabled: Bool
     let onDragStart: () -> Void
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
     var body: some View {
-        CounterRowView(counter: counter, onEdit: onEdit, onDelete: onDelete)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
-            )
-            .opacity(isDragging ? 0.35 : 1)
-            .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
-            .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isDragging)
+        CounterRowView(counter: counter)
+            .counterRowCardBackground()
+            .contextMenu {
+                Button {
+                    onEdit?()
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+
+                Divider()
+
+                Button {
+                    UIPasteboard.general.string = "\(counter.value)"
+                } label: {
+                    Label("Copy Value", systemImage: "doc.on.doc")
+                }
+
+                ShareLink(item: "\(counter.value)", subject: Text(counter.name)) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete?()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             .modifier(CounterDragModifier(
                 counter: counter,
                 isReorderingEnabled: isReorderingEnabled,
@@ -41,13 +60,10 @@ struct CounterDragModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         if isReorderingEnabled {
-            content
-                .onDrag {
-                    onDragStart()
-                    return NSItemProvider(object: counter.uuid.uuidString as NSString)
-                } preview: {
-                    CounterMenuPreview(counter: counter)
-                }
+            content.onDrag {
+                onDragStart()
+                return NSItemProvider(object: counter.uuid.uuidString as NSString)
+            }
         } else {
             content
         }

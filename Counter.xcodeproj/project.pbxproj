@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		ECCBDD102FCAF2F000AE3539 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ECCBDD0F2FCAF2F000AE3539 /* WidgetKit.framework */; };
+		ECCBDD122FCAF2F000AE3539 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ECCBDD112FCAF2F000AE3539 /* SwiftUI.framework */; };
+		ECCBDD212FCAF2F200AE3539 /* CounterWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ECCBDD0D2FCAF2F000AE3539 /* CounterWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EC4398E52DD3C79500EE1E03 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +27,37 @@
 			remoteGlobalIDString = EC4398D32DD3C79400EE1E03;
 			remoteInfo = Counter;
 		};
+		ECCBDD1F2FCAF2F200AE3539 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC4398CC2DD3C79400EE1E03 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ECCBDD0C2FCAF2F000AE3539;
+			remoteInfo = CounterWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		ECCBDD222FCAF2F200AE3539 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				ECCBDD212FCAF2F200AE3539 /* CounterWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		EC4398D42DD3C79400EE1E03 /* Counter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Counter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC4398E42DD3C79500EE1E03 /* CounterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CounterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC4398EE2DD3C79500EE1E03 /* CounterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CounterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECCBDD0D2FCAF2F000AE3539 /* CounterWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CounterWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECCBDD0F2FCAF2F000AE3539 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		ECCBDD112FCAF2F000AE3539 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		ECCBDD272FCAF39100AE3539 /* CounterWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CounterWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +67,13 @@
 				Info.plist,
 			);
 			target = EC4398D32DD3C79400EE1E03 /* Counter */;
+		};
+		ECCBDD262FCAF2F200AE3539 /* Exceptions for "CounterWidget" folder in "CounterWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ECCBDD0C2FCAF2F000AE3539 /* CounterWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -56,6 +94,19 @@
 		EC4398F12DD3C79500EE1E03 /* CounterUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CounterUITests;
+			sourceTree = "<group>";
+		};
+		ECCBDD132FCAF2F000AE3539 /* CounterWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ECCBDD262FCAF2F200AE3539 /* Exceptions for "CounterWidget" folder in "CounterWidgetExtension" target */,
+			);
+			path = CounterWidget;
+			sourceTree = "<group>";
+		};
+		ECCBDD282FCAF40000AE3539 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -82,15 +133,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECCBDD0A2FCAF2F000AE3539 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ECCBDD122FCAF2F000AE3539 /* SwiftUI.framework in Frameworks */,
+				ECCBDD102FCAF2F000AE3539 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		EC4398CB2DD3C79400EE1E03 = {
 			isa = PBXGroup;
 			children = (
+				ECCBDD272FCAF39100AE3539 /* CounterWidgetExtension.entitlements */,
 				EC4398D62DD3C79400EE1E03 /* Counter */,
 				EC4398E72DD3C79500EE1E03 /* CounterTests */,
 				EC4398F12DD3C79500EE1E03 /* CounterUITests */,
+				ECCBDD132FCAF2F000AE3539 /* CounterWidget */,
+				ECCBDD282FCAF40000AE3539 /* Shared */,
+				ECCBDD0E2FCAF2F000AE3539 /* Frameworks */,
 				EC4398D52DD3C79400EE1E03 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,8 +165,18 @@
 				EC4398D42DD3C79400EE1E03 /* Counter.app */,
 				EC4398E42DD3C79500EE1E03 /* CounterTests.xctest */,
 				EC4398EE2DD3C79500EE1E03 /* CounterUITests.xctest */,
+				ECCBDD0D2FCAF2F000AE3539 /* CounterWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		ECCBDD0E2FCAF2F000AE3539 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				ECCBDD0F2FCAF2F000AE3539 /* WidgetKit.framework */,
+				ECCBDD112FCAF2F000AE3539 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -115,13 +189,16 @@
 				EC4398D02DD3C79400EE1E03 /* Sources */,
 				EC4398D12DD3C79400EE1E03 /* Frameworks */,
 				EC4398D22DD3C79400EE1E03 /* Resources */,
+				ECCBDD222FCAF2F200AE3539 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				ECCBDD202FCAF2F200AE3539 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				EC4398D62DD3C79400EE1E03 /* Counter */,
+				ECCBDD282FCAF40000AE3539 /* Shared */,
 			);
 			name = Counter;
 			packageProductDependencies = (
@@ -176,6 +253,29 @@
 			productReference = EC4398EE2DD3C79500EE1E03 /* CounterUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		ECCBDD0C2FCAF2F000AE3539 /* CounterWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECCBDD252FCAF2F200AE3539 /* Build configuration list for PBXNativeTarget "CounterWidgetExtension" */;
+			buildPhases = (
+				ECCBDD092FCAF2F000AE3539 /* Sources */,
+				ECCBDD0A2FCAF2F000AE3539 /* Frameworks */,
+				ECCBDD0B2FCAF2F000AE3539 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				ECCBDD132FCAF2F000AE3539 /* CounterWidget */,
+				ECCBDD282FCAF40000AE3539 /* Shared */,
+			);
+			name = CounterWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = CounterWidgetExtension;
+			productReference = ECCBDD0D2FCAF2F000AE3539 /* CounterWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -183,7 +283,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1630;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
 					EC4398D32DD3C79400EE1E03 = {
@@ -196,6 +296,9 @@
 					EC4398ED2DD3C79500EE1E03 = {
 						CreatedOnToolsVersion = 16.3;
 						TestTargetID = EC4398D32DD3C79400EE1E03;
+					};
+					ECCBDD0C2FCAF2F000AE3539 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -216,6 +319,7 @@
 				EC4398D32DD3C79400EE1E03 /* Counter */,
 				EC4398E32DD3C79500EE1E03 /* CounterTests */,
 				EC4398ED2DD3C79500EE1E03 /* CounterUITests */,
+				ECCBDD0C2FCAF2F000AE3539 /* CounterWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -236,6 +340,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		EC4398EC2DD3C79500EE1E03 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECCBDD0B2FCAF2F000AE3539 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -266,6 +377,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECCBDD092FCAF2F000AE3539 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +396,11 @@
 			isa = PBXTargetDependency;
 			target = EC4398D32DD3C79400EE1E03 /* Counter */;
 			targetProxy = EC4398EF2DD3C79500EE1E03 /* PBXContainerItemProxy */;
+		};
+		ECCBDD202FCAF2F200AE3539 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ECCBDD0C2FCAF2F000AE3539 /* CounterWidgetExtension */;
+			targetProxy = ECCBDD1F2FCAF2F200AE3539 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -570,6 +693,75 @@
 			};
 			name = Release;
 		};
+		ECCBDD232FCAF2F200AE3539 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CounterWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3TQ8QN9GC7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CounterWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CounterWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.murrayb.Counter.CounterWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		ECCBDD242FCAF2F200AE3539 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = CounterWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3TQ8QN9GC7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CounterWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = CounterWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.murrayb.Counter.CounterWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -605,6 +797,15 @@
 			buildConfigurations = (
 				EC4398FF2DD3C79500EE1E03 /* Debug */,
 				EC4399002DD3C79500EE1E03 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECCBDD252FCAF2F200AE3539 /* Build configuration list for PBXNativeTarget "CounterWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ECCBDD232FCAF2F200AE3539 /* Debug */,
+				ECCBDD242FCAF2F200AE3539 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

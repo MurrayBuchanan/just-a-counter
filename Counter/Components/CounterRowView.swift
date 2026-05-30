@@ -8,12 +8,15 @@
 import SwiftUI
 import UIKit
 
+enum CounterRowMetrics {
+    static let iconSize: CGFloat = 40
+    static let iconToTitleSpacing: CGFloat = 10
+    static let rowStride: CGFloat = 64
+    static var titleLeadingInset: CGFloat { iconSize + iconToTitleSpacing }
+}
+
 struct CounterRowView: View {
     @Bindable var counter: Counter
-    var onEdit: (() -> Void)? = nil
-    var onDelete: (() -> Void)? = nil
-    @Environment(\.openURL) private var openURL
-    @Environment(\.modelContext) private var context
     @State private var isActive = false
 
     private var theme: Theme {
@@ -22,11 +25,14 @@ struct CounterRowView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            HStack(spacing: 10) {
+            HStack(spacing: CounterRowMetrics.iconToTitleSpacing) {
                 ZStack {
                     Circle()
                         .fill(theme.gradient)
-                        .frame(width: 40, height: 40)
+                        .frame(
+                            width: CounterRowMetrics.iconSize,
+                            height: CounterRowMetrics.iconSize
+                        )
                     Image(systemName: counter.iconName ?? "circle")
                         .font(.system(size: 20, weight: .medium))
                         .foregroundStyle(.white)
@@ -64,6 +70,7 @@ struct CounterRowView: View {
             .labelsHidden()
             .onChange(of: counter.value) { _, _ in
                 counter.lastUpdated = Date()
+                WidgetReloader.reloadAll()
             }
         }
         .animation(.easeInOut(duration: 0.2), value: counter.value)
@@ -73,35 +80,6 @@ struct CounterRowView: View {
             }
             .opacity(0)
         )
-        .contextMenu {
-            Button {
-                onEdit?()
-            } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-
-            Divider()
-
-            Button {
-                UIPasteboard.general.string = "\(counter.value)"
-            } label: {
-                Label("Copy Value", systemImage: "doc.on.doc")
-            }
-
-            ShareLink(item: "\(counter.value)", subject: Text(counter.name)) {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-
-            Divider()
-
-            Button(role: .destructive) {
-                onDelete?()
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        } preview: {
-            CounterMenuPreview(counter: counter)
-        }
     }
 }
 

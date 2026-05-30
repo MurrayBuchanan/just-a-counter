@@ -2,80 +2,58 @@
 //  CounterWidget.swift
 //  CounterWidget
 //
-//  Created by Murray Buchanan on 30/05/2026.
-//
 
 import WidgetKit
 import SwiftUI
 
-struct Provider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent())
-    }
-
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: configuration)
-    }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
-
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
-        }
-
-        return Timeline(entries: entries, policy: .atEnd)
-    }
-
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
-}
-
-struct SimpleEntry: TimelineEntry {
+struct CounterEntry: TimelineEntry {
     let date: Date
-    let configuration: ConfigurationAppIntent
+    let counter: CounterSnapshot?
 }
 
-struct CounterWidgetEntryView : View {
-    var entry: Provider.Entry
+struct CounterWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> CounterEntry {
+        CounterEntry(date: .now, counter: .preview)
+    }
 
-    var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
+    func snapshot(for configuration: SelectCounterIntent, in context: Context) async -> CounterEntry {
+        CounterEntry(
+            date: .now,
+            counter: CounterWidgetData.loadCounter(id: configuration.counter?.id)
+        )
+    }
 
-            Text("Favorite Emoji:")
-            Text(entry.configuration.favoriteEmoji)
-        }
+    func timeline(for configuration: SelectCounterIntent, in context: Context) async -> Timeline<CounterEntry> {
+        let entry = CounterEntry(
+            date: .now,
+            counter: CounterWidgetData.loadCounter(id: configuration.counter?.id)
+        )
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now
+        return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 }
 
 struct CounterWidget: Widget {
-    let kind: String = "CounterWidget"
+    let kind = "CounterWidget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
-            CounterWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+        AppIntentConfiguration(
+            kind: kind,
+            intent: SelectCounterIntent.self,
+            provider: CounterWidgetProvider()
+        ) { entry in
+            CounterWidgetView(entry: entry)
         }
+        .configurationDisplayName("Counter")
+        .description("Show a counter on your Home Screen.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-    
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
+extension SelectCounterIntent {
+    fileprivate static var preview: SelectCounterIntent {
+        let intent = SelectCounterIntent()
+        intent.counter = CounterEntity(id: CounterSnapshot.preview.id, name: CounterSnapshot.preview.name)
         return intent
     }
 }
@@ -83,6 +61,11 @@ extension ConfigurationAppIntent {
 #Preview(as: .systemSmall) {
     CounterWidget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
+    CounterEntry(date: .now, counter: .preview)
+}
+
+#Preview(as: .systemMedium) {
+    CounterWidget()
+} timeline: {
+    CounterEntry(date: .now, counter: .preview)
 }

@@ -15,8 +15,8 @@ struct FolderSectionHeaderView: View {
     let counters: [Counter]
     let isReorderingEnabled: Bool
     let isDragging: Bool
-    @Binding var isTargeted: Bool
-    var onDrop: (([NSItemProvider]) -> Bool)?
+    let isCounterDragActive: Bool
+    var onDropRejected: (() -> Void)?
     var onDragStart: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
@@ -36,8 +36,6 @@ struct FolderSectionHeaderView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 }
-            } preview: {
-                FolderMenuPreview(title: title)
             }
         } else {
             titleLabel
@@ -59,32 +57,20 @@ struct FolderSectionHeaderView: View {
             .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
             .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isDragging)
 
-        let withDrop: some View = Group {
-            if let onDrop {
-                label
-                    .onDrop(of: [.text], isTargeted: $isTargeted, perform: { providers in
-                        onDrop(providers)
-                    })
-                    .onChange(of: isTargeted) { _, newValue in
-                        if newValue {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    }
-            } else {
-                label
-            }
-        }
+        let interactiveLabel = label
+            .modifier(CounterHeaderDropBlockModifier(
+                active: isReorderingEnabled && isCounterDragActive,
+                onDropRejected: { onDropRejected?() }
+            ))
 
         if isReorderingEnabled, collection != nil, let onDragStart {
-            withDrop
+            interactiveLabel
                 .onDrag {
                     onDragStart()
                     return NSItemProvider(object: collection!.uuid.uuidString as NSString)
-                } preview: {
-                    FolderMenuPreview(title: title)
                 }
         } else {
-            withDrop
+            interactiveLabel
         }
     }
 }

@@ -8,6 +8,23 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Prevents counter drops from landing on section titles; insertion uses the list below.
+struct CounterHeaderDropBlockModifier: ViewModifier {
+    let active: Bool
+    let onDropRejected: () -> Void
+
+    func body(content: Content) -> some View {
+        if active {
+            content.onDrop(
+                of: [.text],
+                delegate: CounterHeaderDropBlockDelegate(onDropRejected: onDropRejected)
+            )
+        } else {
+            content
+        }
+    }
+}
+
 struct CounterSectionDropModifier: ViewModifier {
     let enabled: Bool
     let collectionID: UUID?
@@ -18,8 +35,9 @@ struct CounterSectionDropModifier: ViewModifier {
     let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        if enabled {
+        if enabled, shouldAcceptDrop() {
             content.onDrop(
                 of: [.text],
                 delegate: CounterSectionDropDelegate(
@@ -28,7 +46,6 @@ struct CounterSectionDropModifier: ViewModifier {
                     rowStride: rowStride,
                     topInset: topInset,
                     dragOverIndex: $dragOverIndex,
-                    shouldAcceptDrop: shouldAcceptDrop,
                     onPerformDrop: onPerformDrop
                 )
             )
@@ -46,15 +63,15 @@ struct CollectionSectionDropModifier: ViewModifier {
     let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        if enabled {
+        if enabled, shouldAcceptDrop() {
             content.onDrop(
                 of: [.text],
                 delegate: CollectionSectionDropDelegate(
                     collectionCount: collectionCount,
                     rowStride: rowStride,
                     dragOverCollectionIndex: $dragOverCollectionIndex,
-                    shouldAcceptDrop: shouldAcceptDrop,
                     onPerformDrop: onPerformDrop
                 )
             )

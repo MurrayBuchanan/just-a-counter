@@ -8,6 +8,11 @@
 import SwiftData
 import SwiftUI
 
+struct CounterDragOrigin {
+    let collection: CounterCollection?
+    let index: Int
+}
+
 enum CounterReorder {
     static func adjustedInsertionIndex(
         for counter: Counter,
