@@ -49,13 +49,21 @@ struct ContentView: View {
                     SearchNoResultsView(searchTerm: trimmedSearchText)
                 } else {
                     ScrollView {
-                        VStack() {
-                            unassignedSection
+                        VStack(spacing: 16) {
+                            if showsUnassignedSection {
+                                folderSection(title: "Unassigned", collection: nil, counters: unassignedCounters)
+                            }
                             ForEach(filteredCollections) { collection in
-                                collectionSection(collection)
+                                folderSection(
+                                    title: collection.name,
+                                    collection: collection,
+                                    counters: collection.counters
+                                        .filter { matchesSearch($0) }
+                                        .sorted(by: { $0.order < $1.order })
+                                )
                             }
                         }
-                        .padding(.vertical, 24)
+                        .padding(.vertical, 12)
                         .padding(.horizontal, 12)
                     }
                 }
@@ -167,135 +175,55 @@ struct ContentView: View {
     }
     
     // MARK: - Sections
-    
-    private var unassignedSection: some View {
-        let counters = allCounters.filter { $0.collection == nil && matchesSearch($0) }.sorted(by: { $0.order < $1.order })
-        if counters.isEmpty {
-            return AnyView(EmptyView())
-        } else {
-            return AnyView(
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader(
-                        title: "Unassigned",
-                        collection: nil,
-                        isDropTarget: isUnassignedHeaderDropTarget,
-                        isTargeted: $isUnassignedHeaderDropTarget,
-                        onDrop: { providers in
-                            handleDrop(to: nil, at: counters.count, providers: providers)
-                            return true
-                        }
-                    )
-                    // Drop indicator before first row
-                    DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == 0)
-                        .onDrop(of: ["public.text"], isTargeted: Binding(
-                            get: { dragOverIndex?.collection == nil && dragOverIndex?.index == 0 },
-                            set: { isTargeted in dragOverIndex = isTargeted ? (nil, 0) : nil }
-                        ), perform: { providers in
-                            handleDrop(to: nil, at: 0, providers: providers)
-                            return true
-                        })
-                    ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
-                        DraggableCounterRow(
-                            counter: counter,
-                            collectionID: nil,
-                            idx: idx,
-                            isDropTarget: dragOverIndex?.collection == nil && dragOverIndex?.index == idx,
-                            onDrag: { draggingCounterID = counter.uuid },
-                            onDrop: { providers in
-                                handleDrop(to: nil, at: idx, providers: providers)
-                                return true
-                            },
-                            dragOverIndex: $dragOverIndex,
-                            onEdit: { counterToEdit = counter },
-                            onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
-                        )
-                        .animation(.easeInOut, value: counter.order)
-                        // Drop indicator after each row
-                        DropIndicator(isActive: dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1)
-                            .onDrop(of: ["public.text"], isTargeted: Binding(
-                                get: { dragOverIndex?.collection == nil && dragOverIndex?.index == idx + 1 },
-                                set: { isTargeted in dragOverIndex = isTargeted ? (nil, idx + 1) : nil }
-                            ), perform: { providers in
-                                handleDrop(to: nil, at: idx + 1, providers: providers)
-                                return true
-                            })
-                    }
-                }
-                .padding(.bottom, 24)
-            )
-        }
-    }
-    
-    private func collectionSection(_ collection: CounterCollection) -> some View {
-        let counters = collection.counters
-            .filter { matchesSearch($0) }
+
+    private var unassignedCounters: [Counter] {
+        allCounters
+            .filter { $0.collection == nil && matchesSearch($0) }
             .sorted(by: { $0.order < $1.order })
+    }
+
+    private var showsUnassignedSection: Bool {
+        trimmedSearchText.isEmpty || !unassignedCounters.isEmpty
+    }
+
+    private func folderSection(title: String, collection: CounterCollection?, counters: [Counter]) -> some View {
+        let collectionID = collection?.uuid
         return VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(
-                title: collection.name,
-                collection: collection,
-                isDropTarget: dragOverSection == collection.uuid,
-                isTargeted: Binding(
-                    get: { dragOverSection == collection.uuid },
-                    set: { isTargeted in dragOverSection = isTargeted ? collection.uuid : nil }
-                ),
-                onDrop: { providers in
-                    handleDrop(to: collection, at: counters.count, providers: providers)
-                    return true
-                }
-            )
-            .contextMenu {
-                Button {
-                    collectionToEdit = collection
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-                Button(role: .destructive) {
-                    collectionToDelete = collection
-                    showingDeleteCollectionConfirmation = true
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-            // Drop indicator before first row
-            DropIndicator(isActive: dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == 0)
+            folderHeader(title: title, collection: collection, counters: counters)
+            DropIndicator(isActive: dragOverIndex?.collection == collectionID && dragOverIndex?.index == 0)
                 .onDrop(of: ["public.text"], isTargeted: Binding(
-                    get: { dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == 0 },
-                    set: { isTargeted in dragOverIndex = isTargeted ? (collection.uuid, 0) : nil }
+                    get: { dragOverIndex?.collection == collectionID && dragOverIndex?.index == 0 },
+                    set: { isTargeted in dragOverIndex = isTargeted ? (collectionID, 0) : nil }
                 ), perform: { providers in
                     handleDrop(to: collection, at: 0, providers: providers)
                     return true
                 })
-            if collection.isExpanded {
-                ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
-                    DraggableCounterRow(
-                        counter: counter,
-                        collectionID: collection.uuid,
-                        idx: idx,
-                        isDropTarget: dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == idx,
-                        onDrag: { draggingCounterID = counter.uuid },
-                        onDrop: { providers in
-                            handleDrop(to: collection, at: idx, providers: providers)
-                            return true
-                        },
-                        dragOverIndex: $dragOverIndex,
-                        onEdit: { counterToEdit = counter },
-                        onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
-                    )
-                    .animation(.easeInOut, value: counter.order)
-                    // Drop indicator after each row
-                    DropIndicator(isActive: dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == idx + 1)
-                        .onDrop(of: ["public.text"], isTargeted: Binding(
-                            get: { dragOverIndex?.collection == collection.uuid && dragOverIndex?.index == idx + 1 },
-                            set: { isTargeted in dragOverIndex = isTargeted ? (collection.uuid, idx + 1) : nil }
-                        ), perform: { providers in
-                            handleDrop(to: collection, at: idx + 1, providers: providers)
-                            return true
-                        })
-                }
+            ForEach(Array(counters.enumerated()), id: \.1.uuid) { idx, counter in
+                DraggableCounterRow(
+                    counter: counter,
+                    collectionID: collectionID,
+                    idx: idx,
+                    isDropTarget: dragOverIndex?.collection == collectionID && dragOverIndex?.index == idx,
+                    onDrag: { draggingCounterID = counter.uuid },
+                    onDrop: { providers in
+                        handleDrop(to: collection, at: idx, providers: providers)
+                        return true
+                    },
+                    dragOverIndex: $dragOverIndex,
+                    onEdit: { counterToEdit = counter },
+                    onDelete: { counterToDelete = counter; showingDeleteConfirmation = true }
+                )
+                .animation(.easeInOut, value: counter.order)
+                DropIndicator(isActive: dragOverIndex?.collection == collectionID && dragOverIndex?.index == idx + 1)
+                    .onDrop(of: ["public.text"], isTargeted: Binding(
+                        get: { dragOverIndex?.collection == collectionID && dragOverIndex?.index == idx + 1 },
+                        set: { isTargeted in dragOverIndex = isTargeted ? (collectionID, idx + 1) : nil }
+                    ), perform: { providers in
+                        handleDrop(to: collection, at: idx + 1, providers: providers)
+                        return true
+                    })
             }
         }
-        .padding(.bottom, 24)
     }
     
     // MARK: - Filtering
@@ -391,46 +319,57 @@ struct ContentView: View {
     }
     
     @ViewBuilder
-    private func sectionHeader(title: String, collection: CounterCollection?, isDropTarget: Bool, isTargeted: Binding<Bool>? = nil, onDrop: (([NSItemProvider]) -> Bool)? = nil) -> some View {
-        let header = HStack(spacing: 12) {
-            if collection == nil {
-                Image(systemName: "tray")
-                    .font(.system(size: 20))
-                    .foregroundColor(.secondary)
-                    .frame(width: 24)
-                    .fontWeight(.semibold)
+    private func folderHeader(title: String, collection: CounterCollection?, counters: [Counter]) -> some View {
+        let collectionID = collection?.uuid
+        let header = sectionHeader(
+            title: title,
+            isDropTarget: collectionID == nil ? isUnassignedHeaderDropTarget : dragOverSection == collectionID,
+            isTargeted: collectionID == nil
+                ? $isUnassignedHeaderDropTarget
+                : Binding(
+                    get: { dragOverSection == collectionID },
+                    set: { isTargeted in dragOverSection = isTargeted ? collectionID : nil }
+                ),
+            onDrop: { providers in
+                handleDrop(to: collection, at: counters.count, providers: providers)
+                return true
             }
+        )
+        if let collection {
+            header.contextMenu {
+                Button {
+                    collectionToEdit = collection
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    collectionToDelete = collection
+                    showingDeleteCollectionConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        } else {
+            header
+        }
+    }
+
+    @ViewBuilder
+    private func sectionHeader(title: String, isDropTarget: Bool, isTargeted: Binding<Bool>? = nil, onDrop: (([NSItemProvider]) -> Bool)? = nil) -> some View {
+        let header = VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
+                .font(.subheadline)
+                .fontWeight(.regular)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-            Spacer()
-            if let collection = collection {
-                Text("\(collection.counters.count)")
-                    .font(.system(.body, design: .rounded))
-                    .fontWeight(.medium)
-                    .foregroundColor(Color(UIColor.secondaryLabel))
-                Button(action: { withAnimation { collection.isExpanded.toggle() } }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color(UIColor.secondaryLabel))
-                        .rotationEffect(.degrees(collection.isExpanded ? 90 : 0))
-                        .scaleEffect(collection.isExpanded ? 1.1 : 1.0)
-                        .opacity(collection.isExpanded ? 1.0 : 0.85)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 24, alignment: .trailing)
-                .zIndex(1)
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 2)
+
+            Divider()
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(isDropTarget ? Color(UIColor.quaternaryLabel) : Color(.clear))
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .background(isDropTarget ? Color(UIColor.quaternaryLabel).opacity(0.35) : Color.clear)
+        .contentShape(Rectangle())
         if let onDrop = onDrop, let isTargeted = isTargeted {
             header
                 .onDrop(of: ["public.text"], isTargeted: isTargeted, perform: { providers in
@@ -460,7 +399,6 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 2)
                 .fill(isActive ? Color(UIColor.quaternaryLabel) : Color.clear)
                 .frame(height: 4)
-                .padding(.horizontal)
                 .animation(.easeInOut(duration: 0.18), value: isActive)
         }
         .contentShape(Rectangle())
@@ -489,7 +427,7 @@ struct ContentView: View {
 
 // MARK: - CounterRowView
 private struct CounterRowView: View {
-    let counter: Counter
+    @Bindable var counter: Counter
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
     @Environment(\.openURL) private var openURL
@@ -500,71 +438,82 @@ private struct CounterRowView: View {
         ThemeManager.theme(for: counter)
     }
     
-    private var progress: Double {
-        guard let goal = counter.goalValue, goal > 0 else { return 1.0 }
-        return min(Double(counter.value) / Double(goal), 1.0)
-    }
-    
     var body: some View {
-        ZStack {
-            GeometryReader { geo in
-                HStack(spacing: 0) {
-                    // Filled part
-                    theme.gradient
-                        .frame(width: geo.size.width * progress)
-                    // Unfilled part
-                    if progress < 1.0 {
-                        theme.primaryColor.opacity(0.4)
-                            .frame(width: geo.size.width * (1.0 - progress))
-                    }
+        HStack(spacing: 6) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(theme.gradient)
+                        .frame(width: 40, height: 40)
+                    Image(systemName: counter.iconName ?? "circle")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.white)
                 }
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            .allowsHitTesting(false)
-            
-            HStack(spacing: 12) {
-                if let iconName = counter.iconName {
-                    Image(systemName: iconName)
-                        .font(.system(size: 20))
-                        .foregroundColor(.white)
-                        .frame(width: 24)
-                }
+
                 Text(counter.name)
                     .font(.headline)
-                    .foregroundColor(.white)
-                Spacer()
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
                 HStack(spacing: 4) {
                     Text("\(counter.value)")
                         .font(.system(.body, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
+                        .contentTransition(.numericText())
                     if let goal = counter.goalValue {
                         Text("/ \(goal)")
                             .font(.system(.body, design: .rounded))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isActive = true
+            }
+
+            Stepper(
+                value: $counter.value,
+                in: 0...9999,
+                step: max(counter.step, 1)
+            ) {
+                EmptyView()
+            }
+            .labelsHidden()
+            .onChange(of: counter.value) { _, _ in
+                counter.lastUpdated = Date()
+            }
         }
-        .frame(height: 44)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
-        .onTapGesture {
-            isActive = true
-        }
+        .animation(.easeInOut(duration: 0.2), value: counter.value)
         .background(
             NavigationLink(destination: CounterView(counter: counter), isActive: $isActive) {
                 EmptyView()
             }
             .opacity(0)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
         .contextMenu {
             Button {
                 onEdit?()
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
+
+            Divider()
+
+            Button {
+                #if os(iOS)
+                UIPasteboard.general.string = "\(counter.value)"
+                #endif
+            } label: {
+                Label("Copy Value", systemImage: "doc.on.doc")
+            }
+
+            ShareLink(item: "\(counter.value)", subject: Text(counter.name)) {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+
+            Divider()
+
             Button(role: .destructive) {
                 onDelete?()
             } label: {
@@ -705,7 +654,6 @@ private struct DraggableCounterRow: View {
                         .fill(Color(.systemBackground))
                         .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
                 )
-                .padding(.horizontal, 4)
                 .animation(.easeInOut(duration: 0.25), value: counter.order)
                 .onDrag {
                     onDrag()

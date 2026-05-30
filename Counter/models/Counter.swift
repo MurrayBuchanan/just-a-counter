@@ -8,7 +8,6 @@ final class CounterCollection: Identifiable, Hashable {
     @Relationship(deleteRule: .cascade, inverse: \Counter.collection)
     var counters: [Counter] = []
     var order: Int = 0
-    var isExpanded: Bool = true
     var iconName: String? = nil
     var uuid: UUID = UUID()
     
