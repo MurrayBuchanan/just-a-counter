@@ -28,6 +28,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             mainContent
+                .task { CounterWidgetData.warmCacheIfNeeded() }
                 .searchable(text: $searchText, prompt: "Search counters")
                 .navigationTitle("Counters")
                 .toolbar { countersToolbar }
@@ -181,7 +182,9 @@ struct ContentView: View {
     }
 
     private func deleteCounter(_ counter: Counter) {
+        let id = counter.uuid
         context.delete(counter)
+        WidgetReloader.removeCounter(id: id)
     }
 
     private func deleteCollection(_ collection: CounterCollection) {

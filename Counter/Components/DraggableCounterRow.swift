@@ -33,7 +33,7 @@ struct DraggableCounterRow: View {
                     Label("Copy Value", systemImage: "doc.on.doc")
                 }
 
-                ShareLink(item: "\(counter.value)", subject: Text(counter.name)) {
+                ShareLink(item: counter.shareMessage, subject: Text(counter.name)) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
 

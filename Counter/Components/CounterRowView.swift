@@ -70,7 +70,7 @@ struct CounterRowView: View {
             .labelsHidden()
             .onChange(of: counter.value) { _, _ in
                 counter.lastUpdated = Date()
-                WidgetReloader.reloadAll()
+                WidgetReloader.scheduleReload(for: counter)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: counter.value)

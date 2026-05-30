@@ -190,7 +190,8 @@ struct AddCounterView: View {
             for (idx, c) in counters.enumerated() { c.order = idx }
             collection.counters = counters
         }
-        WidgetReloader.reloadAll()
+        WidgetReloader.sync(counter)
+        WidgetReloader.reloadCounterWidget()
         dismiss()
     }
 }

@@ -3,6 +3,7 @@
 //  CounterWidget
 //
 
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -12,113 +13,188 @@ struct CounterWidgetView: View {
 
     var body: some View {
         Group {
-            switch family {
-            case .systemSmall:
-                SmallCounterWidgetView(counter: entry.counter)
-            case .systemMedium:
-                MediumCounterWidgetView(counter: entry.counter)
-            default:
-                SmallCounterWidgetView(counter: entry.counter)
+            if let counter = entry.counter {
+                CounterWidgetContentView(counter: counter, family: family)
+            } else {
+                CounterWidgetEmptyView(family: family)
             }
-        }
-        .foregroundStyle(.white)
-    }
-}
-
-struct SmallCounterWidgetView: View {
-    let counter: CounterSnapshot?
-
-    var body: some View {
-        if let counter {
-            let theme = ThemeManager.theme(for: counter.themeName)
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: counter.iconName ?? "circle")
-                        .font(.headline)
-                    Text(counter.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 0)
-
-                Text("\(counter.value)")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-
-                if let goal = counter.goalValue {
-                    Text("Goal \(goal)")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
-            .containerBackground(theme.gradient, for: .widget)
-        } else {
-            VStack(spacing: 8) {
-                Image(systemName: "number.circle")
-                    .font(.title2)
-                Text("Edit widget to choose a counter")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.fill.tertiary, for: .widget)
         }
     }
 }
 
-struct MediumCounterWidgetView: View {
-    let counter: CounterSnapshot?
+struct CounterWidgetContentView: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    let counter: CounterSnapshot
+    let family: WidgetFamily
+
+    private var isMedium: Bool { family == .systemMedium }
+
+    private var contentPadding: CGFloat { isMedium ? 16 : 14 }
+
+    private var valueFontSize: CGFloat { isMedium ? 52 : 40 }
+
+    private var controlHeight: CGFloat { isMedium ? 40 : 34 }
 
     var body: some View {
-        if let counter {
-            let theme = ThemeManager.theme(for: counter.themeName)
+        let theme = ThemeManager.theme(for: counter.themeName)
+        let step = max(counter.step, 1)
+        let entity = CounterEntity(id: counter.id, name: counter.name)
 
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.2))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: counter.iconName ?? "circle")
-                        .font(.title2)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            header
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(counter.name)
-                        .font(.headline)
-                        .lineLimit(1)
+            Spacer(minLength: isMedium ? 10 : 6)
 
-                    Text("\(counter.value)")
-                        .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .minimumScaleFactor(0.6)
-                        .lineLimit(1)
+            valueSection
 
-                    if let goal = counter.goalValue, goal > 0 {
-                        ProgressView(value: Double(min(counter.value, goal)), total: Double(goal))
-                            .tint(.white)
-                        Text("\(counter.value) / \(goal)")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                }
+            Spacer(minLength: isMedium ? 10 : 6)
 
-                Spacer(minLength: 0)
-            }
-            .padding()
-            .containerBackground(theme.gradient, for: .widget)
-        } else {
-            HStack(spacing: 12) {
-                Image(systemName: "number.circle")
-                    .font(.largeTitle)
-                Text("Edit widget to choose a counter")
-                    .font(.subheadline)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.fill.tertiary, for: .widget)
+            CounterWidgetControlStrip(
+                height: controlHeight,
+                minusIntent: AdjustCounterIntent(counter: entity, delta: -step),
+                plusIntent: AdjustCounterIntent(counter: entity, delta: step)
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(contentPadding)
+        .containerBackground(for: .widget) {
+            theme.gradient
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Image(systemName: counter.iconName ?? "number.circle")
+                .font(.subheadline.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
+
+            Text(counter.name)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(labelColor)
+    }
+
+    private var valueSection: some View {
+        VStack(spacing: 3) {
+            Text(counter.value, format: .number)
+                .font(.system(size: valueFontSize, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .minimumScaleFactor(0.45)
+                .lineLimit(1)
+                .foregroundStyle(valueColor)
+                .frame(maxWidth: .infinity)
+
+            if let goal = counter.goalValue {
+                Text("of \(goal, format: .number)")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(labelColor.opacity(0.72))
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private var labelColor: Color {
+        renderingMode == .fullColor ? .white.opacity(0.92) : .primary.opacity(0.72)
+    }
+
+    private var valueColor: Color {
+        renderingMode == .fullColor ? .white : .primary
+    }
+}
+
+struct CounterWidgetControlStrip<MinusIntent: AppIntent, PlusIntent: AppIntent>: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    let height: CGFloat
+    let minusIntent: MinusIntent
+    let plusIntent: PlusIntent
+
+    var body: some View {
+        HStack(spacing: 0) {
+            CounterWidgetControlSegment(
+                systemImage: "minus",
+                intent: minusIntent,
+                height: height
+            )
+
+            divider
+
+            CounterWidgetControlSegment(
+                systemImage: "plus",
+                intent: plusIntent,
+                height: height
+            )
+        }
+        .background(controlBackground, in: Capsule())
+        .frame(maxWidth: .infinity)
+        .widgetAccentable()
+    }
+
+    @ViewBuilder
+    private var divider: some View {
+        if renderingMode == .fullColor {
+            Rectangle()
+                .fill(.white.opacity(0.22))
+                .frame(width: 0.5, height: height * 0.5)
+        } else {
+            Divider()
+                .frame(height: height * 0.5)
+        }
+    }
+
+    private var controlBackground: some ShapeStyle {
+        if renderingMode == .fullColor {
+            AnyShapeStyle(.white.opacity(0.18))
+        } else {
+            AnyShapeStyle(.quaternary)
+        }
+    }
+}
+
+struct CounterWidgetControlSegment<I: AppIntent>: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    let systemImage: String
+    let intent: I
+    let height: CGFloat
+
+    var body: some View {
+        Button(intent: intent) {
+            Image(systemName: systemImage)
+                .font(.body.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(renderingMode == .fullColor ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .widgetAccentable()
+    }
+}
+
+struct CounterWidgetEmptyView: View {
+    let family: WidgetFamily
+
+    private var isMedium: Bool { family == .systemMedium }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "number.circle")
+                .font(isMedium ? .largeTitle : .title)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.secondary)
+
+            Text("Select Counter")
+                .font(isMedium ? .subheadline.weight(.medium) : .caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(isMedium ? 16 : 14)
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 }

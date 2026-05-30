@@ -17,24 +17,28 @@ struct CounterWidgetProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: SelectCounterIntent, in context: Context) async -> CounterEntry {
-        CounterEntry(
-            date: .now,
-            counter: CounterWidgetData.loadCounter(id: configuration.counter?.id)
-        )
+        entry(for: configuration, isPreview: context.isPreview)
     }
 
     func timeline(for configuration: SelectCounterIntent, in context: Context) async -> Timeline<CounterEntry> {
-        let entry = CounterEntry(
-            date: .now,
-            counter: CounterWidgetData.loadCounter(id: configuration.counter?.id)
-        )
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: .now) ?? .now
-        return Timeline(entries: [entry], policy: .after(nextUpdate))
+        let entry = entry(for: configuration, isPreview: false)
+        // Counter data is pushed via App Intents and app-side reloads; avoid periodic SwiftData reads.
+        return Timeline(entries: [entry], policy: .never)
+    }
+
+    private func entry(for configuration: SelectCounterIntent, isPreview: Bool) -> CounterEntry {
+        let counter: CounterSnapshot?
+        if isPreview {
+            counter = .preview
+        } else {
+            counter = CounterWidgetData.loadCounter(id: configuration.counter?.id)
+        }
+        return CounterEntry(date: .now, counter: counter)
     }
 }
 
 struct CounterWidget: Widget {
-    let kind = "CounterWidget"
+    let kind = CounterWidgetKind.kind
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(

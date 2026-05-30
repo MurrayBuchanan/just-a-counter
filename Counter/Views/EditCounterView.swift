@@ -200,7 +200,8 @@ struct EditCounterView: View {
         counter.isCountingUp = hasGoal ? isCountingUp : true
 
         updateCollectionAssignment()
-        WidgetReloader.reloadAll()
+        WidgetReloader.sync(counter)
+        WidgetReloader.reloadCounterWidget()
         dismiss()
     }
 

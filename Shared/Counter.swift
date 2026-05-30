@@ -103,6 +103,11 @@ final class Counter {
         guard let goal = goalValue else { return false }
         return isCountingUp ? value >= goal : value <= 0
     }
+
+    /// Plain-text message for sharing the counter and its current value.
+    var shareMessage: String {
+        "The number of \(name) is \(value)."
+    }
 }
 
 extension Counter: Identifiable {
