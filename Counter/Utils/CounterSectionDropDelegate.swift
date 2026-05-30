@@ -1,14 +1,19 @@
+//
+//  CounterSectionDropDelegate.swift
+//  Counter
+//
+//  Created by Murray Buchanan on 13/05/2025.
+//
+
 import SwiftUI
-#if os(iOS)
 import UIKit
-#endif
 
 struct CounterDropLocation: Equatable {
     let collectionID: UUID?
     let index: Int
 }
 
-/// One drop surface per folder section — tracks insertion index from drag position (Shortcuts-style gaps).
+/// Tracks insertion index from drag position within a folder section (Shortcuts-style gaps).
 @MainActor
 final class CounterSectionDropDelegate: DropDelegate {
     let collectionID: UUID?
@@ -16,6 +21,7 @@ final class CounterSectionDropDelegate: DropDelegate {
     let rowStride: CGFloat
     let topInset: CGFloat
     @Binding var dragOverIndex: CounterDropLocation?
+    let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
 
     private var lastInsertionIndex: Int?
@@ -26,6 +32,7 @@ final class CounterSectionDropDelegate: DropDelegate {
         rowStride: CGFloat,
         topInset: CGFloat,
         dragOverIndex: Binding<CounterDropLocation?>,
+        shouldAcceptDrop: @escaping () -> Bool,
         onPerformDrop: @escaping (Int) -> Void
     ) {
         self.collectionID = collectionID
@@ -33,15 +40,18 @@ final class CounterSectionDropDelegate: DropDelegate {
         self.rowStride = rowStride
         self.topInset = topInset
         self._dragOverIndex = dragOverIndex
+        self.shouldAcceptDrop = shouldAcceptDrop
         self.onPerformDrop = onPerformDrop
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard shouldAcceptDrop() else { return DropProposal(operation: .cancel) }
         updateInsertionIndex(for: info.location)
         return DropProposal(operation: .move)
     }
 
     func dropEntered(info: DropInfo) {
+        guard shouldAcceptDrop() else { return }
         updateInsertionIndex(for: info.location)
     }
 
@@ -53,6 +63,7 @@ final class CounterSectionDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        guard shouldAcceptDrop() else { return false }
         onPerformDrop(insertionIndex(for: info.location))
         dragOverIndex = nil
         lastInsertionIndex = nil
@@ -66,14 +77,77 @@ final class CounterSectionDropDelegate: DropDelegate {
         withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
             dragOverIndex = CounterDropLocation(collectionID: collectionID, index: index)
         }
-        #if os(iOS)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
     }
 
     private func insertionIndex(for location: CGPoint) -> Int {
         let adjustedY = max(0, location.y - topInset)
         let raw = Int((adjustedY / rowStride).rounded(.down))
         return min(max(raw, 0), counterCount)
+    }
+}
+
+/// Reorders folder headers when dragging one folder onto another position in the list.
+@MainActor
+final class CollectionSectionDropDelegate: DropDelegate {
+    let collectionCount: Int
+    let rowStride: CGFloat
+    @Binding var dragOverCollectionIndex: Int?
+    let shouldAcceptDrop: () -> Bool
+    let onPerformDrop: (Int) -> Void
+
+    private var lastInsertionIndex: Int?
+
+    init(
+        collectionCount: Int,
+        rowStride: CGFloat,
+        dragOverCollectionIndex: Binding<Int?>,
+        shouldAcceptDrop: @escaping () -> Bool,
+        onPerformDrop: @escaping (Int) -> Void
+    ) {
+        self.collectionCount = collectionCount
+        self.rowStride = rowStride
+        self._dragOverCollectionIndex = dragOverCollectionIndex
+        self.shouldAcceptDrop = shouldAcceptDrop
+        self.onPerformDrop = onPerformDrop
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard shouldAcceptDrop() else { return DropProposal(operation: .cancel) }
+        updateInsertionIndex(for: info.location)
+        return DropProposal(operation: .move)
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard shouldAcceptDrop() else { return }
+        updateInsertionIndex(for: info.location)
+    }
+
+    func dropExited(info: DropInfo) {
+        dragOverCollectionIndex = nil
+        lastInsertionIndex = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard shouldAcceptDrop() else { return false }
+        onPerformDrop(insertionIndex(for: info.location))
+        dragOverCollectionIndex = nil
+        lastInsertionIndex = nil
+        return true
+    }
+
+    private func updateInsertionIndex(for location: CGPoint) {
+        let index = insertionIndex(for: location)
+        guard index != lastInsertionIndex else { return }
+        lastInsertionIndex = index
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            dragOverCollectionIndex = index
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func insertionIndex(for location: CGPoint) -> Int {
+        let raw = Int((max(0, location.y) / rowStride).rounded(.down))
+        return min(max(raw, 0), collectionCount)
     }
 }

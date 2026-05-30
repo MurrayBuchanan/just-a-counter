@@ -1,3 +1,10 @@
+//
+//  CounterLayoutStyle.swift
+//  Counter
+//
+//  Created by Murray Buchanan on 13/05/2025.
+//
+
 import Foundation
 
 enum CounterLayoutStyle: String, CaseIterable, Identifiable, Codable {

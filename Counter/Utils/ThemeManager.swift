@@ -1,3 +1,10 @@
+//
+//  ThemeManager.swift
+//  Counter
+//
+//  Created by Murray Buchanan on 13/05/2025.
+//
+
 import SwiftUI
 
 struct Theme: Identifiable, Hashable {
@@ -21,14 +28,7 @@ struct Theme: Identifiable, Hashable {
     ]
 
     static func theme(for identifier: String) -> Theme {
-        if let match = allThemes.first(where: { $0.id == identifier }) {
-            return match
-        }
-        // Support legacy counters that stored display names like "Blue" or "Sunset"
-        if let match = allThemes.first(where: { $0.name.caseInsensitiveCompare(identifier) == .orderedSame }) {
-            return match
-        }
-        return allThemes[0]
+        allThemes.first(where: { $0.id == identifier }) ?? allThemes[0]
     }
 
     var gradient: LinearGradient {
