@@ -14,12 +14,14 @@ Open `Counter.xcodeproj` in Xcode. There is no SPM package — all targets are X
 # Build (simulator)
 xcodebuild -project Counter.xcodeproj -scheme Counter -destination 'platform=iOS Simulator,name=iPhone 16' build
 
-# Run unit tests
+# Run all unit tests
 xcodebuild -project Counter.xcodeproj -scheme Counter -destination 'platform=iOS Simulator,name=iPhone 16' test
 
 # Run a single test class
-xcodebuild -project Counter.xcodeproj -scheme Counter -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:CounterTests/CounterTests test
+xcodebuild -project Counter.xcodeproj -scheme Counter -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:CounterTests/CounterDuplicateNamingTests test
 ```
+
+Tests use **Swift Testing** (`import Testing`, `@Test`, `#expect`) — not XCTest.
 
 CI runs `swift build` and `swift test --parallel` on `macos-latest` (`.github/workflows/swift.yml`).
 
@@ -35,8 +37,8 @@ CI runs `swift build` and `swift test --parallel` on `macos-latest` (`.github/wo
 
 ### SwiftData models (`Shared/Counter.swift`)
 
-- **`Counter`** — the core model: name, value, step, theme, layout, optional goal, optional collection FK, order index
-- **`CounterCollection`** — folder that groups counters; cascade-deletes its counters' FK (not the counters themselves)
+- **`Counter`** — name, value, step, theme, layout, optional goal (`goalValue`/`goalDate`), `isCountingUp`, `dailyIncrement`, `isLocked`, `showsResetButton`/`resetToValue`, optional collection FK, order index
+- **`CounterCollection`** — folder that groups counters; has optional `iconName`; the `@Relationship(deleteRule: .cascade)` cascade-deletes the FK on counters (not the counters themselves)
 - Both use a `uuid: UUID` field as the stable identity (`var id: UUID { uuid }`); SwiftData's `persistentModelID` is not used for identity comparisons
 
 `SharedModelContainer.shared` creates the single `ModelContainer` backed by the App Group `group.com.murrayb.Counter`, shared between the app and the widget extension.
@@ -48,9 +50,10 @@ The widget **cannot** open SwiftData synchronously inside a timeline provider. I
 1. **`CounterSnapshot`** (`Shared/CounterSnapshot.swift`) — lightweight `Codable` struct mirroring the fields the widget needs.
 2. **`WidgetSnapshotStore`** (`Shared/WidgetSnapshotStore.swift`) — `[UUID: CounterSnapshot]` stored in the App Group `UserDefaults`. Reads are synchronous; this is what the widget provider calls.
 3. **`CounterWidgetData`** (`Shared/CounterWidgetData.swift`) — bridge: loads a snapshot (cache-first, SwiftData fallback), adjusts values from `AdjustCounterIntent`, and warms the cache on first app launch.
-4. **`WidgetReloader`** (`Shared/WidgetReloader.swift`) — debounces widget reloads (350 ms) triggered by in-app stepper changes so `WidgetCenter.reloadTimelines` isn't hammered. Also used after value commits in `CounterView`.
+4. **`AdjustCounterIntent`** (`CounterWidget/AppIntent.swift`) — the `AppIntent` fired by the widget's +/− buttons; writes directly to SwiftData via `SharedModelContainer.shared`, updates the snapshot cache, then calls `WidgetCenter.reloadTimelines`.
+5. **`WidgetReloader`** (`Shared/WidgetReloader.swift`) — debounces widget reloads (350 ms) triggered by in-app stepper changes so `WidgetCenter.reloadTimelines` isn't hammered. Also used after value commits in `CounterView`.
 
-The widget's timeline policy is `.never`; reloads are push-only (either from `AdjustCounterIntent` in the widget itself, or from `WidgetReloader` in the app).
+The widget's timeline policy is `.never`; reloads are push-only (either from `AdjustCounterIntent` in the widget itself, or from `WidgetReloader` in the app). Widget supports `.systemSmall` and `.systemMedium` families.
 
 ### Drag & drop reordering
 
@@ -64,7 +67,7 @@ SwiftUI's built-in `List` move is not used. Instead, `CountersListView` implemen
 ### Themes & layout
 
 - **`ThemeManager`** / **`Theme`** — maps a string ID (stored in `Counter.themeName`) to a `Color` and a `LinearGradient`. Themes are static; there is no user-defined colour.
-- **`CounterLayoutStyle`** — `standard | wide | split | minimal` enum (persisted as `standard`, `compact`, `wide`, `minimal`), stored as `String` in `Counter.layoutStyle`.
+- **`CounterLayoutStyle`** — `standard | wide | split | minimal` enum stored as `String` in `Counter.layoutStyle`. **Watch out**: the rawValues do not match the case names — `.wide` is stored as `"compact"` and `.split` is stored as `"wide"`. Always use the enum (never hard-code rawValue strings) to avoid silent mismatches.
 
 ### View hierarchy
 
@@ -83,6 +86,7 @@ ContentView                  ← @Query for collections + allCounters, owns all 
 ## Key constraints
 
 - Counter values are clamped to `0...999_999` everywhere (app and widget intents); see `CounterValueBounds` in `Shared/Counter.swift`.
+- `isLocked` counters silently ignore all value-change attempts in the app, `CounterView`, and `AdjustCounterIntent` — check this flag before any mutation path.
 - Reordering is disabled while a search query is active (`isReorderingEnabled = trimmedSearchText.isEmpty`).
 - Deleting a collection unassigns its counters rather than deleting them (`counter.collection = nil` loop before `context.delete`).
 - The widget snapshot cache must be kept warm: `CounterWidgetData.warmCacheIfNeeded()` is called in `ContentView.task` on first load.
