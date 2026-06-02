@@ -14,7 +14,6 @@ struct ContentView: View {
     @Query(sort: [SortDescriptor(\Counter.order)]) private var allCounters: [Counter]
 
     @State private var searchText = ""
-    @State private var isSearchPresented = false
     @State private var showAddSheet = false
     @State private var showNewCollectionSheet = false
     @State private var counterToEdit: Counter? = nil
@@ -28,7 +27,7 @@ struct ContentView: View {
         NavigationStack {
             mainContent
                 .task { CounterWidgetData.warmCacheIfNeeded() }
-                .searchable(text: $searchText, isPresented: $isSearchPresented, prompt: "Search")
+                .searchable(text: $searchText, prompt: "Search")
                 .navigationTitle("Counters")
                 .toolbar { countersToolbar }
                 .sheet(isPresented: $showAddSheet) { addCounterSheet }
@@ -104,11 +103,7 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var countersToolbar: some ToolbarContent {
-        ToolbarItem(placement: .bottomBar) {
-            Button { isSearchPresented = true } label: {
-                Image(systemName: "magnifyingglass")
-            }
-        }
+        DefaultToolbarItem(kind: .search, placement: .bottomBar)
         ToolbarSpacer(.flexible, placement: .bottomBar)
         ToolbarItem(placement: .bottomBar) {
             Menu {

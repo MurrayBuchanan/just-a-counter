@@ -60,8 +60,24 @@ private struct LayoutPickerCell: View {
 private struct LayoutPlaceholder: View {
     let style: CounterLayoutStyle
 
-    private var surface: Color { Color(.secondarySystemBackground) }
-    private var minimalSurface: Color { Color(.tertiarySystemFill) }
+    /// Grouped form cells are white in light mode, so `secondarySystemBackground` vanishes there;
+    /// dark mode keeps the elevated gray surface that already reads correctly.
+    private var surface: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .light
+                ? .tertiarySystemFill
+                : .secondarySystemBackground
+        })
+    }
+
+    private var minimalSurface: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .light
+                ? .secondarySystemFill
+                : .tertiarySystemFill
+        })
+    }
+
     private var valueColor: Color { Color(.label) }
     private var controlFill: Color { Color(.tertiaryLabel) }
     private var controlMuted: Color { Color(.quaternaryLabel) }

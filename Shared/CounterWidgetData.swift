@@ -34,7 +34,7 @@ enum CounterWidgetData {
 
         guard let counter = try context.fetch(descriptor).first else { return nil }
 
-        counter.value = min(9999, max(0, counter.value + delta))
+        counter.value = CounterValueBounds.clamp(counter.value + delta)
         counter.lastUpdated = Date()
         try context.save()
 

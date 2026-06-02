@@ -62,7 +62,7 @@ struct CounterRowView: View {
 
             Stepper(
                 value: $counter.value,
-                in: 0...9999,
+                in: CounterValueBounds.range,
                 step: max(counter.step, 1)
             ) {
                 EmptyView()

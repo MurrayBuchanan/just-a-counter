@@ -297,7 +297,7 @@ struct CounterView: View {
         isEditingValue = false
         isValueFieldFocused = false
         guard let newValue = Int(editedValueText.trimmingCharacters(in: .whitespaces)),
-              (0...9999).contains(newValue) else { return }
+              CounterValueBounds.range.contains(newValue) else { return }
         withAnimation {
             counter.value = newValue
             counter.lastUpdated = Date()
@@ -307,7 +307,7 @@ struct CounterView: View {
 
     private func changeValue(by amount: Int) {
         withAnimation {
-            counter.value = min(9999, max(0, counter.value + amount * counter.step))
+            counter.value = CounterValueBounds.clamp(counter.value + amount * counter.step)
             counter.lastUpdated = Date()
             WidgetReloader.scheduleReload(for: counter)
         }

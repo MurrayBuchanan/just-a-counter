@@ -48,7 +48,7 @@ struct AddCounterView: View {
                     StepperNumberField(
                         title: "Initial Value",
                         value: $value,
-                        range: 0...9999,
+                        range: CounterValueBounds.range,
                         focus: $focusedNumberField,
                         field: .startValue
                     )
@@ -92,7 +92,7 @@ struct AddCounterView: View {
                         StepperNumberField(
                             title: "Target Value",
                             value: $goalValue,
-                            range: 1...9999,
+                            range: 1...CounterValueBounds.max,
                             focus: $focusedNumberField,
                             field: .goalValue
                         )

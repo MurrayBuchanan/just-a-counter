@@ -82,7 +82,7 @@ ContentView                  ← @Query for collections + allCounters, owns all 
 
 ## Key constraints
 
-- Counter values are clamped to `0...9999` everywhere (app and widget intents).
+- Counter values are clamped to `0...999_999` everywhere (app and widget intents); see `CounterValueBounds` in `Shared/Counter.swift`.
 - Reordering is disabled while a search query is active (`isReorderingEnabled = trimmedSearchText.isEmpty`).
 - Deleting a collection unassigns its counters rather than deleting them (`counter.collection = nil` loop before `context.delete`).
 - The widget snapshot cache must be kept warm: `CounterWidgetData.warmCacheIfNeeded()` is called in `ContentView.task` on first load.

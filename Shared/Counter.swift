@@ -113,3 +113,13 @@ final class Counter {
 extension Counter: Identifiable {
     var id: UUID { uuid }
 }
+
+enum CounterValueBounds {
+    static let min = 0
+    static let max = 999_999
+    static let range = min...max
+
+    static func clamp(_ value: Int) -> Int {
+        Swift.min(max, Swift.max(min, value))
+    }
+}
