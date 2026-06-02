@@ -63,6 +63,11 @@ struct CounterDragModifier: ViewModifier {
             content.onDrag {
                 onDragStart()
                 return NSItemProvider(object: counter.uuid.uuidString as NSString)
+            } preview: {
+                CounterRowView(counter: counter)
+                    .counterRowCardBackground()
+                    .frame(width: UIScreen.main.bounds.width - 24, height: CounterRowMetrics.rowStride)
+                    .padding(4)
             }
         } else {
             content

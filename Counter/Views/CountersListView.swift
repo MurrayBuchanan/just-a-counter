@@ -25,6 +25,7 @@ struct CountersListView: View {
     @State private var draggingCounterID: UUID? = nil
     @State private var draggingCollection: CounterCollection? = nil
     @State private var isEndingDragSession = false
+    @State private var dragCancelTask: Task<Void, Never>?
 
     private let counterRowStride: CGFloat = CounterRowMetrics.rowStride
     private let collectionHeaderStride: CGFloat = 56
@@ -44,6 +45,18 @@ struct CountersListView: View {
             scheduleEndDragSession()
             return false
         })
+        .onChange(of: draggingCounterID) { _, newID in
+            if newID != nil { scheduleDragCancellation() }
+        }
+        .onChange(of: draggingCollection) { _, newCollection in
+            if newCollection != nil { scheduleDragCancellation() }
+        }
+        .onChange(of: dragOverIndex) { _, new in
+            if new != nil { dragCancelTask?.cancel() }
+        }
+        .onChange(of: dragOverCollectionIndex) { _, new in
+            if new != nil { dragCancelTask?.cancel() }
+        }
     }
 
     // MARK: - Sections
@@ -68,15 +81,11 @@ struct CountersListView: View {
         )
     }
 
-    /// Omits the dragged folder from layout so only insertion gaps change list height.
+    /// Omits the dragged folder from layout once it has entered a drop target.
+    /// Keeping it visible until then prevents it disappearing during a context menu long-press.
     private var listCollections: [CounterCollection] {
-        guard let draggingCollection else { return filteredCollections }
+        guard let draggingCollection, dragOverCollectionIndex != nil else { return filteredCollections }
         return filteredCollections.filter { $0.uuid != draggingCollection.uuid }
-    }
-
-    private var draggedCollectionSourceIndex: Int? {
-        guard let draggingCollection else { return nil }
-        return filteredCollections.firstIndex(where: { $0.uuid == draggingCollection.uuid })
     }
 
     private var dropTargetCollectionCount: Int {
@@ -158,6 +167,8 @@ struct CountersListView: View {
 
     /// Resets drag UI state only. SwiftData is unchanged until a valid drop commits via `moveCounter`.
     private func endDragSession() {
+        dragCancelTask?.cancel()
+        dragCancelTask = nil
         guard !isEndingDragSession else { return }
         guard draggingCounterID != nil || draggingCollection != nil else { return }
         isEndingDragSession = true
@@ -169,19 +180,23 @@ struct CountersListView: View {
         isEndingDragSession = false
     }
 
+    /// Cancels the drag state if no drop target has been entered within 500ms.
+    /// This handles the case where onDrag fires during a context menu long-press
+    /// but no real drag movement occurs.
+    private func scheduleDragCancellation() {
+        dragCancelTask?.cancel()
+        dragCancelTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled,
+                  dragOverIndex == nil,
+                  dragOverCollectionIndex == nil else { return }
+            endDragSession()
+        }
+    }
+
     private func showsCollectionInsertionGap(before index: Int) -> Bool {
-        guard draggingCollection != nil else { return false }
-
-        if let dragOverCollectionIndex {
-            return dragOverCollectionIndex == index
-        }
-
-        // Keep source slot open while the drag hasn't entered a drop target yet.
-        if let source = draggedCollectionSourceIndex {
-            return index == source
-        }
-
-        return false
+        guard let dragOverCollectionIndex, draggingCollection != nil else { return false }
+        return dragOverCollectionIndex == index
     }
 
     // MARK: - Filtering

@@ -67,6 +67,13 @@ struct FolderSectionHeaderView: View {
                 .onDrag {
                     onDragStart()
                     return NSItemProvider(object: collection!.uuid.uuidString as NSString)
+                } preview: {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.regular)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                        .frame(width: UIScreen.main.bounds.width - 24, height: 44, alignment: .leading)
                 }
         } else {
             interactiveLabel
