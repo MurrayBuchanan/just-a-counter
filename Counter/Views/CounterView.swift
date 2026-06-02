@@ -46,24 +46,31 @@ struct CounterView: View {
     }
 
     // MARK: - Standard
-    // Full gradient background; value centered; +/− in the navigation bar.
+    // Full gradient background; value centered; large circular +/− buttons below.
 
     private var standardLayout: some View {
         ZStack {
             gradientBackground
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                valueDisplay(size: 72, color: .white)
-                goalLabel(size: 32, color: .white.opacity(0.7))
+            VStack(spacing: 0) {
+                Spacer()
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    valueDisplay(size: 72, color: .white)
+                    goalLabel(size: 32, color: .white.opacity(0.7))
+                }
+                Spacer()
+                HStack(spacing: 52) {
+                    circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.2)) {
+                        changeValue(by: -1)
+                    }
+                    circleButton(systemImage: "plus", foreground: .white, background: .white.opacity(0.3)) {
+                        changeValue(by: 1)
+                    }
+                }
+                .padding(.bottom, 52)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { changeValue(by: -1) } label: { Label("Decrease", systemImage: "minus") }
-                Button { changeValue(by: 1) }  label: { Label("Increase", systemImage: "plus") }
-            }
-        }
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .tint(.white)
@@ -172,57 +179,48 @@ struct CounterView: View {
     }
 
     // MARK: - Minimal
-    // System background; value displayed in the counter's theme color; circular +/− buttons below;
-    // optional goal progress bar at the bottom.
+    // Pure black background; white value and monochrome buttons; no theme color.
 
     private var minimalLayout: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                valueDisplay(size: 80, color: theme.primaryColor)
-                goalLabel(size: 36, color: .secondary)
-            }
-
-            Spacer()
-
-            HStack(spacing: 52) {
-                Button { changeValue(by: -1) } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(theme.primaryColor)
-                        .frame(width: 64, height: 64)
-                        .background(theme.primaryColor.opacity(0.1))
-                        .clipShape(Circle())
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 0) {
+                Spacer()
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    valueDisplay(size: 80, color: .white)
+                    goalLabel(size: 36, color: .white.opacity(0.35))
                 }
-
-                Button { changeValue(by: 1) } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 64, height: 64)
-                        .background(theme.gradient)
-                        .clipShape(Circle())
-                }
-            }
-            .padding(.bottom, 40)
-
-            if let goal = counter.goalValue, goal > 0 {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color(.systemFill))
-                        Capsule()
-                            .fill(theme.gradient)
-                            .frame(width: geo.size.width * min(CGFloat(counter.value) / CGFloat(goal), 1))
-                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: counter.value)
+                Spacer()
+                HStack(spacing: 52) {
+                    circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.12)) {
+                        changeValue(by: -1)
+                    }
+                    circleButton(systemImage: "plus", foreground: .black, background: .white) {
+                        changeValue(by: 1)
                     }
                 }
-                .frame(height: 6)
-                .padding(.horizontal, 40)
-                .padding(.bottom, 32)
+                .padding(.bottom, 52)
+                if let goal = counter.goalValue, goal > 0 {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.15))
+                            Capsule()
+                                .fill(Color.white)
+                                .frame(width: geo.size.width * min(CGFloat(counter.value) / CGFloat(goal), 1))
+                                .animation(.spring(response: 0.4, dampingFraction: 0.75), value: counter.value)
+                        }
+                    }
+                    .frame(height: 4)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 32)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .tint(.white)
     }
 
     // MARK: - Shared helpers
@@ -274,6 +272,17 @@ struct CounterView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.white.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
+    private func circleButton(systemImage: String, foreground: Color, background: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(foreground)
+                .frame(width: 64, height: 64)
+                .background(background)
+                .clipShape(Circle())
         }
     }
 
