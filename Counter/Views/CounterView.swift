@@ -8,106 +8,285 @@
 import SwiftUI
 
 struct CounterView: View {
-    @Environment(\.colorScheme) var colorScheme
     @Bindable var counter: Counter
-    @State private var showingProgressSheet = false
-    @State private var showingInsights = false
-    @State private var isGoalReached = false
     @State private var isEditingValue = false
     @State private var editedValueText = ""
     @FocusState private var isValueFieldFocused: Bool
-    
-    private var theme: Theme {
-        ThemeManager.theme(for: counter)
+
+    private var theme: Theme { ThemeManager.theme(for: counter) }
+
+    private var goalOpacity: Double {
+        counter.goalValue == nil || counter.value >= counter.goalValue! ? 1.0 : 0.7
     }
-    
+
     var body: some View {
+        layoutContent
+            .navigationTitle(counter.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { commitEditedValue() }
+                }
+            }
+            .statusBar(hidden: true)
+            .onChange(of: isValueFieldFocused) { _, focused in
+                if !focused && isEditingValue { commitEditedValue() }
+            }
+    }
+
+    @ViewBuilder
+    private var layoutContent: some View {
+        switch counter.layout {
+        case .standard: standardLayout
+        case .compact:  compactLayout
+        case .wide:     wideLayout
+        case .minimal:  minimalLayout
+        }
+    }
+
+    // MARK: - Standard
+    // Full gradient background; value centered; +/− in the navigation bar.
+
+    private var standardLayout: some View {
         ZStack {
-            theme.gradient
-                .opacity(counter.goalValue == nil || counter.value >= counter.goalValue! ? 1 : 0.7)
-                .ignoresSafeArea()
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
-            
+            gradientBackground
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Group {
-                    if isEditingValue {
-                        TextField("", text: $editedValueText)
-                            .font(.system(size: 72, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .keyboardType(.numberPad)
-                            .focused($isValueFieldFocused)
-                            .multilineTextAlignment(.center)
-                            .fixedSize()
-                    } else {
-                        Button {
-                            beginEditingValue()
-                        } label: {
-                            Text("\(counter.value)")
-                                .font(.system(size: 72, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .contentTransition(.numericText())
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Tap to enter a new value")
-                    }
-                }
-                if let goal = counter.goalValue {
-                    Text("/ \(goal)")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.7))
-                        .foregroundColor(.white)
-                        .shadow(color: Color.white.opacity(0.4), radius: 4, x: 0, y: 0)
-                }
+                valueDisplay(size: 72, color: .white)
+                goalLabel(size: 32, color: .white.opacity(0.7))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
-        .navigationTitle(counter.name)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    changeValue(by: -1)
-                } label: {
-                    Label("Decrease", systemImage: "minus")
-                }
-                Button {
-                    changeValue(by: 1)
-                } label: {
-                    Label("Increase", systemImage: "plus")
-                }
-            }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    commitEditedValue()
-                }
+                Button { changeValue(by: -1) } label: { Label("Decrease", systemImage: "minus") }
+                Button { changeValue(by: 1) }  label: { Label("Increase", systemImage: "plus") }
             }
         }
-        .navigationBarHidden(false)
-        .statusBar(hidden: true)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .tint(.white)
-        .onChange(of: isValueFieldFocused) { _, focused in
-            if !focused && isEditingValue {
-                commitEditedValue()
+    }
+
+    // MARK: - Compact
+    // Full gradient background; value in the upper portion; two large tap buttons fill the lower portion.
+
+    private var compactLayout: some View {
+        ZStack {
+            gradientBackground
+            VStack(spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    valueDisplay(size: 72, color: .white)
+                    goalLabel(size: 32, color: .white.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                HStack(spacing: 16) {
+                    compactActionButton(systemImage: "minus") { changeValue(by: -1) }
+                    compactActionButton(systemImage: "plus")  { changeValue(by: 1) }
+                }
+                .frame(height: 148)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .tint(.white)
     }
-    
+
+    // MARK: - Wide
+    // Full gradient background; the entire screen is split into left (−) / right (+) tap zones.
+    // Value edit is triggered via the toolbar pencil so tap zones have no gesture conflicts.
+
+    private var wideLayout: some View {
+        ZStack {
+            gradientBackground
+
+            HStack(spacing: 0) {
+                Button { changeValue(by: -1) } label: {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 26, weight: .light))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .padding(.leading, 28)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(!isEditingValue)
+
+                Button { changeValue(by: 1) } label: {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 26, weight: .light))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .padding(.trailing, 28)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .allowsHitTesting(!isEditingValue)
+            }
+
+            // Value sits above the tap zones and does not block them
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if isEditingValue {
+                    TextField("", text: $editedValueText)
+                        .font(.system(size: 96, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .keyboardType(.numberPad)
+                        .focused($isValueFieldFocused)
+                        .multilineTextAlignment(.center)
+                        .fixedSize()
+                } else {
+                    Text("\(counter.value)")
+                        .font(.system(size: 96, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
+                }
+                goalLabel(size: 42, color: .white.opacity(0.7))
+            }
+            .allowsHitTesting(false)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { beginEditingValue() } label: {
+                    Image(systemName: "pencil")
+                }
+            }
+        }
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(.clear, for: .navigationBar)
+        .tint(.white)
+    }
+
+    // MARK: - Minimal
+    // System background; value displayed in the counter's theme color; circular +/− buttons below;
+    // optional goal progress bar at the bottom.
+
+    private var minimalLayout: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                valueDisplay(size: 80, color: theme.primaryColor)
+                goalLabel(size: 36, color: .secondary)
+            }
+
+            Spacer()
+
+            HStack(spacing: 52) {
+                Button { changeValue(by: -1) } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(theme.primaryColor)
+                        .frame(width: 64, height: 64)
+                        .background(theme.primaryColor.opacity(0.1))
+                        .clipShape(Circle())
+                }
+
+                Button { changeValue(by: 1) } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 64, height: 64)
+                        .background(theme.gradient)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.bottom, 40)
+
+            if let goal = counter.goalValue, goal > 0 {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(.systemFill))
+                        Capsule()
+                            .fill(theme.gradient)
+                            .frame(width: geo.size.width * min(CGFloat(counter.value) / CGFloat(goal), 1))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75), value: counter.value)
+                    }
+                }
+                .frame(height: 6)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 32)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Shared helpers
+
+    private var gradientBackground: some View {
+        theme.gradient
+            .opacity(goalOpacity)
+            .ignoresSafeArea()
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
+    }
+
+    @ViewBuilder
+    private func valueDisplay(size: CGFloat, color: Color) -> some View {
+        if isEditingValue {
+            TextField("", text: $editedValueText)
+                .font(.system(size: size, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .keyboardType(.numberPad)
+                .focused($isValueFieldFocused)
+                .multilineTextAlignment(.center)
+                .fixedSize()
+        } else {
+            Button { beginEditingValue() } label: {
+                Text("\(counter.value)")
+                    .font(.system(size: size, weight: .bold, design: .rounded))
+                    .foregroundStyle(color)
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Tap to enter a new value")
+        }
+    }
+
+    @ViewBuilder
+    private func goalLabel(size: CGFloat, color: Color) -> some View {
+        if let goal = counter.goalValue {
+            Text("/ \(goal)")
+                .font(.system(size: size, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func compactActionButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.white.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+
     private func beginEditingValue() {
         editedValueText = "\(counter.value)"
         isEditingValue = true
         isValueFieldFocused = true
     }
-    
+
     private func commitEditedValue() {
         guard isEditingValue else { return }
         isEditingValue = false
         isValueFieldFocused = false
-        
         guard let newValue = Int(editedValueText.trimmingCharacters(in: .whitespaces)),
               (0...9999).contains(newValue) else { return }
         withAnimation {
@@ -116,10 +295,10 @@ struct CounterView: View {
             WidgetReloader.scheduleReload(for: counter)
         }
     }
-    
+
     private func changeValue(by amount: Int) {
         withAnimation {
-            counter.value += amount * counter.step
+            counter.value = min(9999, max(0, counter.value + amount * counter.step))
             counter.lastUpdated = Date()
             WidgetReloader.scheduleReload(for: counter)
         }

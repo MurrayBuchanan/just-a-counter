@@ -16,8 +16,6 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var isSearchPresented = false
     @State private var showAddSheet = false
-    @State private var addCounterSheetDetent: PresentationDetent = .large
-    @State private var editCounterSheetDetent: PresentationDetent = .large
     @State private var showNewCollectionSheet = false
     @State private var counterToEdit: Counter? = nil
     @State private var showingDeleteConfirmation = false
@@ -34,18 +32,8 @@ struct ContentView: View {
                 .navigationTitle("Counters")
                 .toolbar { countersToolbar }
                 .sheet(isPresented: $showAddSheet) { addCounterSheet }
-                .onChange(of: showAddSheet) { _, isShowing in
-                    if isShowing {
-                        addCounterSheetDetent = .large
-                    }
-                }
                 .sheet(isPresented: $showNewCollectionSheet) { newCollectionSheet }
                 .sheet(item: $counterToEdit) { counter in editCounterSheet(for: counter) }
-                .onChange(of: counterToEdit) { _, counter in
-                    if counter != nil {
-                        editCounterSheetDetent = .large
-                    }
-                }
                 .sheet(item: $collectionToEdit) { collection in editCollectionSheet(for: collection) }
                 .confirmationDialog("Delete Counter?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
                     Button("Delete", role: .destructive) {
@@ -145,7 +133,7 @@ struct ContentView: View {
             AddCounterView(collections: collections)
                 .environment(\.modelContext, context)
         }
-        .presentationDetents([.medium, .large], selection: $addCounterSheetDetent)
+        .presentationDetents([.large])
     }
 
     private var newCollectionSheet: some View {
@@ -164,7 +152,7 @@ struct ContentView: View {
             EditCounterView(counter: counter, collections: collections)
                 .environment(\.modelContext, context)
         }
-        .presentationDetents([.medium, .large], selection: $editCounterSheetDetent)
+        .presentationDetents([.large])
     }
 
     private func editCollectionSheet(for collection: CounterCollection) -> some View {
