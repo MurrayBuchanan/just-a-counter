@@ -28,10 +28,10 @@ struct FolderSectionHeaderView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let titleLabel = folderTitleLabel
+        let header = folderHeaderRow
 
         if let collection, onEdit != nil || onDelete != nil {
-            titleLabel.contextMenu {
+            header.contextMenu {
                 if let onEdit {
                     Button(action: onEdit) {
                         Label("Rename Folder", systemImage: "pencil")
@@ -47,71 +47,88 @@ struct FolderSectionHeaderView: View {
                 }
             }
         } else {
-            titleLabel
+            header
         }
     }
 
-    @ViewBuilder
-    private var folderTitleLabel: some View {
-        HStack(spacing: 6) {
-            let label = Text(title)
-                .font(.footnote)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .background(GeometryReader { geo in
-                    Color.clear
-                        .onAppear { headerWidth = geo.size.width }
-                        .onChange(of: geo.size.width) { _, new in headerWidth = new }
-                })
-                .contentShape(Rectangle())
-                .opacity(isDragging ? 0.35 : 1)
-                .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
-                .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isDragging)
-
-            let interactiveLabel = label
-                .modifier(CounterHeaderDropBlockModifier(
-                    active: isReorderingEnabled && isCounterDragActive,
-                    onDropOnHeader: { onDropOnHeader?() }
-                ))
-
-            if isReorderingEnabled, collection != nil, let onDragStart {
-                interactiveLabel
-                    .onDrag {
-                        onDragStart()
-                        return NSItemProvider(object: collection!.uuid.uuidString as NSString)
-                    } preview: {
-                        Text(title)
-                            .font(.subheadline)
-                            .fontWeight(.regular)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
-                            .frame(width: headerWidth, height: 44, alignment: .leading)
-                    }
-            } else {
-                interactiveLabel
-            }
-
+    private var folderHeaderRow: some View {
+        Group {
             if showsDisclosureChevron, let onToggleExpansion {
                 Button(action: onToggleExpansion) {
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .frame(width: 28, height: 44)
-                        .contentShape(Rectangle())
+                    headerLabelRow
                 }
                 .buttonStyle(.plain)
-                .animation(
-                    FolderSectionDisclosureAnimation.chevron(reduceMotion: reduceMotion),
-                    value: isExpanded
-                )
-                .accessibilityLabel(isExpanded ? "Collapse folder" : "Expand folder")
-                .sensoryFeedback(.selection, trigger: isExpanded)
+            } else {
+                headerLabelRow
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(showsDisclosureChevron ? .isButton : .isHeader)
+        .accessibilityLabel(title)
+        .accessibilityValue(showsDisclosureChevron ? (isExpanded ? "Expanded" : "Collapsed") : "")
+        .accessibilityHint(showsDisclosureChevron ? "Double tap to \(isExpanded ? "collapse" : "expand") folder" : "")
+    }
+
+    private var headerLabelRow: some View {
+        HStack(alignment: .center, spacing: 8) {
+            titleContent
+            if showsDisclosureChevron {
+                disclosureChevron
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: CounterGroupedListStyle.sectionHeaderMinHeight, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var titleContent: some View {
+        let label = Text(title)
+            .counterFolderSectionHeaderStyle()
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { headerWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in headerWidth = new }
+            })
+            .opacity(isDragging ? 0.35 : 1)
+            .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
+            .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isDragging)
+
+        let interactiveLabel = label
+            .modifier(CounterHeaderDropBlockModifier(
+                active: isReorderingEnabled && isCounterDragActive,
+                onDropOnHeader: { onDropOnHeader?() }
+            ))
+
+        if isReorderingEnabled, collection != nil, let onDragStart {
+            interactiveLabel
+                .onDrag {
+                    onDragStart()
+                    return NSItemProvider(object: collection!.uuid.uuidString as NSString)
+                } preview: {
+                    Text(title)
+                        .counterFolderSectionHeaderStyle()
+                        .padding(.horizontal, 4)
+                        .frame(width: headerWidth, alignment: .leading)
+                }
+        } else {
+            interactiveLabel
+        }
+    }
+
+    private var disclosureChevron: some View {
+        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 24, alignment: .trailing)
+            .animation(
+                FolderSectionDisclosureAnimation.chevron(reduceMotion: reduceMotion),
+                value: isExpanded
+            )
+            .accessibilityHidden(true)
+            .sensoryFeedback(.selection, trigger: isExpanded)
     }
 }

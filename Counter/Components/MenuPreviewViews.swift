@@ -10,6 +10,6 @@ import SwiftUI
 extension View {
     /// Kept for drag previews only — list rows use section-level grouping instead.
     func counterRowCardBackground() -> some View {
-        background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: CounterGroupedListStyle.sectionCornerRadius, style: .continuous))
+        counterSectionGroupedBackground()
     }
 }

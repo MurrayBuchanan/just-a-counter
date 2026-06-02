@@ -6,16 +6,59 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum CounterGroupedListStyle {
-    static let sectionCornerRadius: CGFloat = 10
+    /// Notes-style rounded group (~12pt on current iOS).
+    static let sectionCornerRadius: CGFloat = 12
     static let horizontalInset: CGFloat = 16
-    static let sectionSpacing: CGFloat = 22
+    /// Inset grouped: space above each section header after the first (card → next header).
+    static let sectionSpacing: CGFloat = 20
+    /// Space from section header to the rounded card (Notes-style grouping).
+    static let headerToContentSpacing: CGFloat = 8
+    static let scrollTopContentMargin: CGFloat = 4
+    static let sectionHeaderMinHeight: CGFloat = 36
+    static let rowHorizontalPadding: CGFloat = 16
+
+    /// Leading inset for dividers inside a group (aligned with row text, after the icon).
+    static var rowSeparatorLeadingInset: CGFloat {
+        rowHorizontalPadding + CounterRowMetrics.titleLeadingInset
+    }
+
+    /// Fill for grouped “cards” — elevated gray on black in dark mode, like Notes.
+    static var sectionCardFill: Color {
+        Color(uiColor: .secondarySystemGroupedBackground)
+    }
+}
+
+extension Text {
+    /// Notes-style folder headers: bold primary title above each group.
+    func counterFolderSectionHeaderStyle() -> some View {
+        font(.title3)
+            .fontWeight(.bold)
+            .foregroundStyle(.primary)
+            .textCase(nil)
+    }
 }
 
 extension View {
-    /// One inset-grouped “card” wrapping all rows in a folder section (Settings / Reminders style).
+    /// Single rounded container for all rows in a folder (Notes list group).
     func counterSectionGroupedBackground() -> some View {
-        background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: CounterGroupedListStyle.sectionCornerRadius, style: .continuous))
+        let shape = RoundedRectangle(cornerRadius: CounterGroupedListStyle.sectionCornerRadius, style: .continuous)
+        return background(CounterGroupedListStyle.sectionCardFill, in: shape)
+            .clipShape(shape)
+    }
+
+    /// Inset separator between rows inside a group (Notes-style, aligned with title text).
+    @ViewBuilder
+    func counterSectionInsetDivider(isVisible: Bool) -> some View {
+        if isVisible {
+            overlay(alignment: .bottom) {
+                Divider()
+                    .padding(.leading, CounterGroupedListStyle.rowSeparatorLeadingInset)
+            }
+        } else {
+            self
+        }
     }
 }

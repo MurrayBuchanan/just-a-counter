@@ -94,7 +94,7 @@ struct CounterRowView: View {
             }
         }
         .frame(minHeight: CounterRowMetrics.rowHeight)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, CounterGroupedListStyle.rowHorizontalPadding)
         .animation(.easeInOut(duration: 0.2), value: counter.value)
         .animation(.easeInOut(duration: 0.2), value: counter.isLocked)
         .background(

@@ -7,11 +7,6 @@
 
 import SwiftUI
 
-enum CounterFolderSectionMetrics {
-    /// Divider + padding above the first counter row inside section content.
-    static let contentTopInset: CGFloat = 7
-}
-
 struct CounterFolderSectionView: View {
     let title: String
     let collection: CounterCollection?
@@ -80,16 +75,12 @@ struct CounterFolderSectionView: View {
         !showsCounterContent && isReorderingEnabled && draggingCounterID != nil
     }
 
+    private var showsSectionBody: Bool {
+        showsCollapsedDropTarget || showsCounterContent
+    }
+
     var body: some View {
-        Section {
-            if showsCollapsedDropTarget {
-                collapsedDropTarget
-            } else {
-                FolderSectionDisclosableContent(isExpanded: showsCounterContent) {
-                    expandedSectionContent
-                }
-            }
-        } header: {
+        VStack(alignment: .leading, spacing: 0) {
             FolderSectionHeaderView(
                 title: title,
                 collection: collection,
@@ -112,6 +103,22 @@ struct CounterFolderSectionView: View {
                 onEdit: collection.flatMap { col in onEditCollection.map { edit in { edit(col) } } },
                 onDelete: collection.flatMap { col in onDeleteCollection.map { delete in { delete(col) } } }
             )
+
+            if showsSectionBody {
+                sectionBody
+                    .padding(.top, CounterGroupedListStyle.headerToContentSpacing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sectionBody: some View {
+        if showsCollapsedDropTarget {
+            collapsedDropTarget
+        } else {
+            FolderSectionDisclosableContent(isExpanded: showsCounterContent) {
+                expandedSectionContent
+            }
         }
     }
 
@@ -186,10 +193,7 @@ struct CounterFolderSectionView: View {
                     onDelete: { onDeleteCounter(counter) }
                 )
                 .frame(height: isDragLayoutActive ? counterRowStride : nil)
-                if !isDragLayoutActive, idx < listCounters.count - 1 {
-                    Divider()
-                        .padding(.leading, 16 + CounterRowMetrics.titleLeadingInset)
-                }
+                .counterSectionInsetDivider(isVisible: !isDragLayoutActive && idx < listCounters.count - 1)
             }
             if showsInsertionGap(before: listCounters.count) {
                 ReorderInsertionGap(height: counterRowStride)

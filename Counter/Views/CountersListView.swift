@@ -39,16 +39,19 @@ struct CountersListView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: CounterGroupedListStyle.sectionSpacing, pinnedViews: [.sectionHeaders]) {
-                collectionSectionsStack
+            LazyVStack(alignment: .leading, spacing: 0) {
+                collectionFolderSections
                 if showsUnassignedSection {
                     unassignedSection
+                        .padding(.top, sectionTopPaddingAfterCollections)
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.bottom, 8)
             .padding(.horizontal, CounterGroupedListStyle.horizontalInset)
         }
+        .contentMargins(.top, CounterGroupedListStyle.scrollTopContentMargin, for: .scrollContent)
         .background(Color(.systemGroupedBackground))
+        .modifier(collectionReorderDropModifier)
         .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
             scheduleEndDragSession()
             return false
@@ -146,25 +149,32 @@ struct CountersListView: View {
         draggingCollection == nil ? filteredCollections.count : listCollections.count
     }
 
-    private var collectionSectionsStack: some View {
-        VStack(spacing: CounterGroupedListStyle.sectionSpacing) {
-            ForEach(Array(listCollections.enumerated()), id: \.element.uuid) { idx, collection in
-                if showsCollectionInsertionGap(before: idx) {
-                    ReorderInsertionGap(height: collectionHeaderStride)
-                }
-                folderSectionView(
-                    title: collection.name,
-                    collection: collection,
-                    counters: filteredCounters(in: collection),
-                    onEditCollection: onEditCollection,
-                    onDeleteCollection: onDeleteCollection
-                )
-            }
-            if showsCollectionInsertionGap(before: listCollections.count) {
+    private var sectionTopPaddingAfterCollections: CGFloat {
+        listCollections.isEmpty ? 0 : CounterGroupedListStyle.sectionSpacing
+    }
+
+    @ViewBuilder
+    private var collectionFolderSections: some View {
+        ForEach(Array(listCollections.enumerated()), id: \.element.uuid) { idx, collection in
+            if showsCollectionInsertionGap(before: idx) {
                 ReorderInsertionGap(height: collectionHeaderStride)
             }
+            folderSectionView(
+                title: collection.name,
+                collection: collection,
+                counters: filteredCounters(in: collection),
+                onEditCollection: onEditCollection,
+                onDeleteCollection: onDeleteCollection
+            )
+            .padding(.top, idx == 0 ? 0 : CounterGroupedListStyle.sectionSpacing)
         }
-        .modifier(CollectionSectionDropModifier(
+        if showsCollectionInsertionGap(before: listCollections.count) {
+            ReorderInsertionGap(height: collectionHeaderStride)
+        }
+    }
+
+    private var collectionReorderDropModifier: CollectionSectionDropModifier {
+        CollectionSectionDropModifier(
             enabled: isReorderingEnabled,
             collectionCount: dropTargetCollectionCount,
             rowStride: collectionHeaderStride,
@@ -189,7 +199,7 @@ struct CountersListView: View {
                     )
                 }
             }
-        ))
+        )
     }
 
     // MARK: - Drag handling
