@@ -239,7 +239,7 @@ struct StepperNumberField<Field: Hashable>: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .monospacedDigit()
-                .frame(width: 80)
+                .frame(width: showsStepper ? 80 : nil)
                 .focused(focus, equals: field)
                 .onChange(of: value) { _, newValue in
                     value = min(max(newValue, range.lowerBound), range.upperBound)

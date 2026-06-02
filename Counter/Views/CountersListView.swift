@@ -46,12 +46,12 @@ struct CountersListView: View {
                         .padding(.top, sectionTopPaddingAfterCollections)
                 }
             }
+            .modifier(collectionReorderDropModifier)
             .padding(.bottom, 8)
             .padding(.horizontal, CounterGroupedListStyle.horizontalInset)
         }
         .contentMargins(.top, CounterGroupedListStyle.scrollTopContentMargin, for: .scrollContent)
         .background(Color(.systemGroupedBackground))
-        .modifier(collectionReorderDropModifier)
         .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
             scheduleEndDragSession()
             return false
@@ -150,7 +150,7 @@ struct CountersListView: View {
     }
 
     private var sectionTopPaddingAfterCollections: CGFloat {
-        listCollections.isEmpty ? 0 : CounterGroupedListStyle.sectionSpacing
+        filteredCollections.isEmpty ? 0 : CounterGroupedListStyle.sectionSpacing
     }
 
     @ViewBuilder
@@ -166,7 +166,7 @@ struct CountersListView: View {
                 onEditCollection: onEditCollection,
                 onDeleteCollection: onDeleteCollection
             )
-            .padding(.top, idx == 0 ? 0 : CounterGroupedListStyle.sectionSpacing)
+            .padding(.top, filteredCollections.first?.uuid == collection.uuid ? 0 : CounterGroupedListStyle.sectionSpacing)
         }
         if showsCollectionInsertionGap(before: listCollections.count) {
             ReorderInsertionGap(height: collectionHeaderStride)
