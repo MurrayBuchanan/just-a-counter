@@ -31,21 +31,24 @@ struct CountersListView: View {
     /// True only after the drag has entered its first drop target — used to gate layout changes
     /// so a context-menu long-press never triggers compact mode.
     @State private var isDragLayoutActive = false
+    @State private var folderExpansion = FolderSectionExpansionStore()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let counterRowStride: CGFloat = CounterRowMetrics.rowStride
     private let collectionHeaderStride: CGFloat = 56
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+            LazyVStack(spacing: CounterGroupedListStyle.sectionSpacing, pinnedViews: [.sectionHeaders]) {
                 collectionSectionsStack
                 if showsUnassignedSection {
                     unassignedSection
                 }
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .padding(.horizontal, CounterGroupedListStyle.horizontalInset)
         }
+        .background(Color(.systemGroupedBackground))
         .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
             scheduleEndDragSession()
             return false
@@ -81,15 +84,41 @@ struct CountersListView: View {
     // MARK: - Sections
 
     private var unassignedSection: some View {
-        CounterFolderSectionView(
+        folderSectionView(
             title: Self.unassignedFolderTitle,
             collection: nil,
-            counters: unassignedCounters,
+            counters: unassignedCounters
+        )
+    }
+
+    private func folderSectionView(
+        title: String,
+        collection: CounterCollection?,
+        counters: [Counter],
+        onEditCollection: ((CounterCollection) -> Void)? = nil,
+        onDeleteCollection: ((CounterCollection) -> Void)? = nil
+    ) -> some View {
+        let sectionKey = FolderSectionExpansionStore.sectionKey(for: collection)
+        let isExpanded = folderExpansion.isExpanded(sectionKey: sectionKey)
+        let showsCounterContent = isExpanded || !trimmedSearchText.isEmpty
+
+        return CounterFolderSectionView(
+            title: title,
+            collection: collection,
+            counters: counters,
             allCounters: allCounters,
             collections: collections,
+            showsCounterContent: showsCounterContent,
+            isExpanded: isExpanded,
+            showsDisclosureChevron: trimmedSearchText.isEmpty,
             isReorderingEnabled: isReorderingEnabled,
             counterRowStride: counterRowStride,
             isDragLayoutActive: isDragLayoutActive,
+            onToggleExpansion: {
+                withAnimation(FolderSectionDisclosureAnimation.expandCollapse(reduceMotion: reduceMotion)) {
+                    folderExpansion.toggle(sectionKey: sectionKey)
+                }
+            },
             draggingCounterID: $draggingCounterID,
             draggingCollection: $draggingCollection,
             dragOverIndex: $dragOverIndex,
@@ -97,6 +126,8 @@ struct CountersListView: View {
             onMoveCounter: onMoveCounter,
             onDuplicateCounter: onDuplicateCounter,
             onDeleteCounter: onDeleteCounter,
+            onEditCollection: onEditCollection,
+            onDeleteCollection: onDeleteCollection,
             onBeginCounterDrag: { counter, index in
                 beginCounterDrag(counter, at: index)
             },
@@ -116,33 +147,17 @@ struct CountersListView: View {
     }
 
     private var collectionSectionsStack: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: CounterGroupedListStyle.sectionSpacing) {
             ForEach(Array(listCollections.enumerated()), id: \.element.uuid) { idx, collection in
                 if showsCollectionInsertionGap(before: idx) {
                     ReorderInsertionGap(height: collectionHeaderStride)
                 }
-                CounterFolderSectionView(
+                folderSectionView(
                     title: collection.name,
                     collection: collection,
                     counters: filteredCounters(in: collection),
-                    allCounters: allCounters,
-                    collections: collections,
-                    isReorderingEnabled: isReorderingEnabled,
-                    counterRowStride: counterRowStride,
-                    isDragLayoutActive: isDragLayoutActive,
-                    draggingCounterID: $draggingCounterID,
-                    draggingCollection: $draggingCollection,
-                    dragOverIndex: $dragOverIndex,
-                    onEditCounter: onEditCounter,
-                    onMoveCounter: onMoveCounter,
-                    onDuplicateCounter: onDuplicateCounter,
-                    onDeleteCounter: onDeleteCounter,
                     onEditCollection: onEditCollection,
-                    onDeleteCollection: onDeleteCollection,
-                    onBeginCounterDrag: { counter, index in
-                        beginCounterDrag(counter, at: index)
-                    },
-                    onEndDragSession: endDragSession
+                    onDeleteCollection: onDeleteCollection
                 )
             }
             if showsCollectionInsertionGap(before: listCollections.count) {

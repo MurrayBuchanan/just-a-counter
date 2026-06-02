@@ -9,9 +9,12 @@ import SwiftUI
 import UIKit
 
 enum CounterRowMetrics {
-    static let iconSize: CGFloat = 40
-    static let iconToTitleSpacing: CGFloat = 10
-    static let rowStride: CGFloat = 64
+    static let iconSize: CGFloat = 28
+    static let iconToTitleSpacing: CGFloat = 12
+    static let textLineSpacing: CGFloat = 2
+    static let rowHeight: CGFloat = 58
+    static let rowStride: CGFloat = 58
+    static let stepperWidth: CGFloat = 88
     static var titleLeadingInset: CGFloat { iconSize + iconToTitleSpacing }
 }
 
@@ -23,64 +26,75 @@ struct CounterRowView: View {
         ThemeManager.theme(for: counter)
     }
 
+    private var valueLabel: String {
+        CounterValueFormatting.listRowValue(value: counter.value, goal: counter.goalValue)
+    }
+
+    private var accessibilitySummary: String {
+        CounterAccessibility.listRowLabel(
+            name: counter.name,
+            value: counter.value,
+            goal: counter.goalValue,
+            isLocked: counter.isLocked
+        )
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            HStack(spacing: CounterRowMetrics.iconToTitleSpacing) {
-                ZStack {
-                    Circle()
-                        .fill(theme.gradient)
-                        .frame(
-                            width: CounterRowMetrics.iconSize,
-                            height: CounterRowMetrics.iconSize
-                        )
-                    Image(systemName: counter.iconName ?? "circle")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white)
-                }
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: counter.iconName ?? "circle")
+                .font(.body.weight(.medium))
+                .imageScale(.large)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(theme.primaryColor)
+                .frame(width: CounterRowMetrics.iconSize, alignment: .center)
+                .accessibilityHidden(true)
 
-                Text(counter.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                HStack(spacing: 4) {
-                    Text("\(counter.value)")
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .contentTransition(.numericText())
-                    if let goal = counter.goalValue {
-                        Text("/ \(goal)")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
+            Button {
                 isActive = true
-            }
+            } label: {
+                VStack(alignment: .leading, spacing: CounterRowMetrics.textLineSpacing) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(counter.name)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
 
-            if counter.isLocked {
-                Image(systemName: "lock.fill")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 70, height: 32)
-                    .accessibilityLabel("Locked")
-            } else {
-                Stepper(
-                    value: $counter.value,
-                    in: CounterValueBounds.range,
-                    step: max(counter.step, 1)
-                ) {
-                    EmptyView()
+                        if counter.isLocked {
+                            Image(systemName: "lock.fill")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.tertiary)
+                                .symbolRenderingMode(.hierarchical)
+                                .fixedSize()
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(valueLabel)
+                        .font(.subheadline)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .contentTransition(.numericText())
                 }
-                .labelsHidden()
-                .onChange(of: counter.value) { _, _ in
-                    counter.lastUpdated = Date()
-                    WidgetReloader.scheduleReload(for: counter)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .accessibilityHidden(true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(accessibilitySummary)
+            .accessibilityHint(CounterAccessibility.listRowHint(isLocked: counter.isLocked))
+
+            if !counter.isLocked {
+                trailingStepper
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             }
         }
+        .frame(minHeight: CounterRowMetrics.rowHeight)
+        .padding(.horizontal, 16)
         .animation(.easeInOut(duration: 0.2), value: counter.value)
         .animation(.easeInOut(duration: 0.2), value: counter.isLocked)
         .background(
@@ -90,9 +104,26 @@ struct CounterRowView: View {
             .opacity(0)
         )
     }
+
+    private var trailingStepper: some View {
+        CounterInlineStepper(
+            value: $counter.value,
+            step: counter.step,
+            range: CounterValueBounds.range,
+            counterName: counter.name,
+            onValueChange: {
+                counter.lastUpdated = Date()
+                WidgetReloader.scheduleReload(for: counter)
+            }
+        )
+        .frame(width: CounterRowMetrics.stepperWidth)
+    }
 }
 
-#Preview {
-    let counter = Counter(name: "Push-ups", value: 42, step: 1)
-    return CounterRowView(counter: counter)
+#Preview("Unlocked") {
+    CounterRowView(counter: Counter(name: "Winning Streak", value: 110_182, step: 1))
+}
+
+#Preview("Locked") {
+    CounterRowView(counter: Counter(name: "Olivia", value: 154, step: 1, iconName: "plus.square.fill", isLocked: true))
 }

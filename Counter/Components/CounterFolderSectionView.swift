@@ -18,9 +18,14 @@ struct CounterFolderSectionView: View {
     let counters: [Counter]
     let allCounters: [Counter]
     let collections: [CounterCollection]
+    let showsCounterContent: Bool
+    let isExpanded: Bool
+    let showsDisclosureChevron: Bool
     let isReorderingEnabled: Bool
     let counterRowStride: CGFloat
     let isDragLayoutActive: Bool
+
+    var onToggleExpansion: (() -> Void)?
 
     @Binding var draggingCounterID: UUID?
     @Binding var draggingCollection: CounterCollection?
@@ -71,82 +76,30 @@ struct CounterFolderSectionView: View {
         isDraggingFromThisSection ? displayCounters : counters
     }
 
+    private var showsCollapsedDropTarget: Bool {
+        !showsCounterContent && isReorderingEnabled && draggingCounterID != nil
+    }
+
     var body: some View {
         Section {
-            VStack(spacing: 0) {
-                Divider()
-                    .padding(.bottom, 6)
-                VStack(spacing: isDragLayoutActive ? 0 : 8) {
-                    if listCounters.isEmpty, isReorderingEnabled {
-                        Color.clear
-                            .frame(maxWidth: .infinity, minHeight: counterRowStride)
-                    } else {
-                        ForEach(Array(listCounters.enumerated()), id: \.1.uuid) { idx, counter in
-                            if showsInsertionGap(before: idx) {
-                                ReorderInsertionGap(height: counterRowStride)
-                            }
-                            DraggableCounterRow(
-                                counter: counter,
-                                collections: collections,
-                                isReorderingEnabled: isReorderingEnabled,
-                                onDragStart: {
-                                    let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
-                                    onBeginCounterDrag(counter, index)
-                                },
-                                onEdit: { onEditCounter(counter) },
-                                onMove: { onMoveCounter(counter, $0) },
-                                onDuplicate: { onDuplicateCounter(counter) },
-                                onDelete: { onDeleteCounter(counter) }
-                            )
-                            .frame(height: isDragLayoutActive ? counterRowStride : nil)
-                            if !isDragLayoutActive, idx < listCounters.count - 1 {
-                                Divider()
-                                    .padding(.leading, CounterRowMetrics.titleLeadingInset)
-                            }
-                        }
-                        if showsInsertionGap(before: listCounters.count) {
-                            ReorderInsertionGap(height: counterRowStride)
-                        }
-                    }
+            if showsCollapsedDropTarget {
+                collapsedDropTarget
+            } else {
+                FolderSectionDisclosableContent(isExpanded: showsCounterContent) {
+                    expandedSectionContent
                 }
-                .frame(minHeight: listCounters.isEmpty && isReorderingEnabled ? counterRowStride : 0)
             }
-            .contentShape(Rectangle())
-            .modifier(CounterSectionDropModifier(
-                enabled: isReorderingEnabled,
-                collectionID: collectionID,
-                counterCount: dropTargetCounterCount,
-                rowStride: counterRowStride,
-                topInset: CounterFolderSectionMetrics.contentTopInset,
-                dragOverIndex: $dragOverIndex,
-                shouldAcceptDrop: { draggingCounterID != nil },
-                onPerformDrop: { index in
-                    guard let draggingCounterID,
-                          let draggingCounter = allCounters.first(where: { $0.uuid == draggingCounterID }) else {
-                        scheduleEndDragSession()
-                        return
-                    }
-                    let destination = collection
-                    scheduleEndDragSession()
-                    DispatchQueue.main.async {
-                        CounterReorder.moveCounter(
-                            draggingCounter,
-                            to: destination,
-                            at: index,
-                            allCounters: allCounters
-                        )
-                    }
-                },
-                onInvalidDrop: scheduleEndDragSession
-            ))
         } header: {
             FolderSectionHeaderView(
                 title: title,
                 collection: collection,
                 counters: counters,
+                isExpanded: isExpanded,
+                showsDisclosureChevron: showsDisclosureChevron,
                 isReorderingEnabled: isReorderingEnabled,
                 isDragging: collection.map { draggingCollection?.uuid == $0.uuid } ?? false,
                 isCounterDragActive: draggingCounterID != nil,
+                onToggleExpansion: onToggleExpansion,
                 onDropOnHeader: scheduleEndDragSession,
                 onDragStart: collection.map { col in
                     {
@@ -159,6 +112,88 @@ struct CounterFolderSectionView: View {
                 onEdit: collection.flatMap { col in onEditCollection.map { edit in { edit(col) } } },
                 onDelete: collection.flatMap { col in onDeleteCollection.map { delete in { delete(col) } } }
             )
+        }
+    }
+
+    private var expandedSectionContent: some View {
+        VStack(spacing: 0) {
+            counterRows
+        }
+        .frame(minHeight: listCounters.isEmpty && isReorderingEnabled ? counterRowStride : 0)
+        .counterSectionGroupedBackground()
+        .contentShape(Rectangle())
+        .modifier(counterSectionDropModifier(topInset: 0))
+    }
+
+    private var collapsedDropTarget: some View {
+        Color.clear
+            .frame(maxWidth: .infinity, minHeight: counterRowStride)
+            .contentShape(Rectangle())
+            .modifier(counterSectionDropModifier(topInset: 0))
+    }
+
+    private func counterSectionDropModifier(topInset: CGFloat) -> CounterSectionDropModifier {
+        CounterSectionDropModifier(
+            enabled: isReorderingEnabled,
+            collectionID: collectionID,
+            counterCount: dropTargetCounterCount,
+            rowStride: counterRowStride,
+            topInset: topInset,
+            dragOverIndex: $dragOverIndex,
+            shouldAcceptDrop: { draggingCounterID != nil },
+            onPerformDrop: { index in
+                guard let draggingCounterID,
+                      let draggingCounter = allCounters.first(where: { $0.uuid == draggingCounterID }) else {
+                    scheduleEndDragSession()
+                    return
+                }
+                let destination = collection
+                scheduleEndDragSession()
+                DispatchQueue.main.async {
+                    CounterReorder.moveCounter(
+                        draggingCounter,
+                        to: destination,
+                        at: index,
+                        allCounters: allCounters
+                    )
+                }
+            },
+            onInvalidDrop: scheduleEndDragSession
+        )
+    }
+
+    @ViewBuilder
+    private var counterRows: some View {
+        if listCounters.isEmpty, isReorderingEnabled {
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: counterRowStride)
+        } else {
+            ForEach(Array(listCounters.enumerated()), id: \.1.uuid) { idx, counter in
+                if showsInsertionGap(before: idx) {
+                    ReorderInsertionGap(height: counterRowStride)
+                }
+                DraggableCounterRow(
+                    counter: counter,
+                    collections: collections,
+                    isReorderingEnabled: isReorderingEnabled,
+                    onDragStart: {
+                        let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
+                        onBeginCounterDrag(counter, index)
+                    },
+                    onEdit: { onEditCounter(counter) },
+                    onMove: { onMoveCounter(counter, $0) },
+                    onDuplicate: { onDuplicateCounter(counter) },
+                    onDelete: { onDeleteCounter(counter) }
+                )
+                .frame(height: isDragLayoutActive ? counterRowStride : nil)
+                if !isDragLayoutActive, idx < listCounters.count - 1 {
+                    Divider()
+                        .padding(.leading, 16 + CounterRowMetrics.titleLeadingInset)
+                }
+            }
+            if showsInsertionGap(before: listCounters.count) {
+                ReorderInsertionGap(height: counterRowStride)
+            }
         }
     }
 

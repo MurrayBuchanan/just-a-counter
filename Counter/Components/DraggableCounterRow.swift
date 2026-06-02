@@ -28,7 +28,6 @@ struct DraggableCounterRow: View {
 
     var body: some View {
         CounterRowView(counter: counter)
-            .counterRowCardBackground()
             .background(GeometryReader { geo in
                 Color.clear
                     .onAppear { rowWidth = geo.size.width }

@@ -14,6 +14,7 @@ struct ContentView: View {
     @Query(sort: [SortDescriptor(\Counter.order)]) private var allCounters: [Counter]
 
     @State private var searchText = ""
+    @State private var isSearchPresented = false
     @State private var showAddSheet = false
     @State private var showNewCollectionSheet = false
     @State private var counterToEdit: Counter? = nil
@@ -27,9 +28,21 @@ struct ContentView: View {
         NavigationStack {
             mainContent
                 .task { CounterWidgetData.warmCacheIfNeeded() }
-                .searchable(text: $searchText, prompt: "Search")
+                .searchable(
+                    text: $searchText,
+                    isPresented: $isSearchPresented,
+                    placement: .toolbar,
+                    prompt: "Search"
+                )
+                .searchPresentationToolbarBehavior(.avoidHidingContent)
+                .toolbarVisibility(.hidden, for: .bottomBar)
                 .navigationTitle("Counters")
                 .toolbar { countersToolbar }
+                .onChange(of: isSearchPresented) { _, isPresented in
+                    if !isPresented {
+                        searchText = ""
+                    }
+                }
                 .sheet(isPresented: $showAddSheet) { addCounterSheet }
                 .sheet(isPresented: $showNewCollectionSheet) { newCollectionSheet }
                 .sheet(item: $counterToEdit) { counter in editCounterSheet(for: counter) }
@@ -105,9 +118,14 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var countersToolbar: some ToolbarContent {
-        DefaultToolbarItem(kind: .search, placement: .bottomBar)
-        ToolbarSpacer(.flexible, placement: .bottomBar)
-        ToolbarItem(placement: .bottomBar) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                isSearchPresented = true
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+            }
+            .accessibilityHint("Shows the search field")
+
             Menu {
                 Button {
                     showAddSheet = true
@@ -122,6 +140,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "plus")
             }
+            .accessibilityLabel("Add")
         }
     }
 
@@ -199,7 +218,10 @@ struct ContentView: View {
         let newOrder = (siblings.map(\.order).max() ?? -1) + 1
 
         let copy = Counter(
-            name: duplicateName(for: source.name),
+            name: CounterDuplicateNaming.name(
+                forSourceName: source.name,
+                existingNames: allCounters.map(\.name)
+            ),
             value: source.value,
             dailyIncrement: source.dailyIncrement,
             step: source.step,
@@ -226,16 +248,10 @@ struct ContentView: View {
         }
         WidgetReloader.sync(copy)
         WidgetReloader.reloadCounterWidget()
-    }
 
-    private func duplicateName(for name: String) -> String {
-        let base = "\(name) Copy"
-        guard allCounters.contains(where: { $0.name == base }) else { return base }
-        var index = 2
-        while allCounters.contains(where: { $0.name == "\(name) Copy \(index)" }) {
-            index += 1
+        DispatchQueue.main.async {
+            counterToEdit = copy
         }
-        return "\(name) Copy \(index)"
     }
 
     private func deleteCounter(_ counter: Counter) {
