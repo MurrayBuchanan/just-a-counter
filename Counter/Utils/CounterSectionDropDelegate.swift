@@ -146,7 +146,8 @@ final class CollectionSectionDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        onPerformDrop(insertionIndex(for: info.location))
+        let index = dragOverCollectionIndex ?? insertionIndex(for: info.location)
+        onPerformDrop(index)
         dragOverCollectionIndex = nil
         lastInsertionIndex = nil
         return true

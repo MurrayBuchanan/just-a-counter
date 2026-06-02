@@ -26,6 +26,9 @@ struct CountersListView: View {
     @State private var draggingCollection: CounterCollection? = nil
     @State private var isEndingDragSession = false
     @State private var dragCancelTask: Task<Void, Never>?
+    /// True only after the drag has entered its first drop target — used to gate layout changes
+    /// so a context-menu long-press never triggers compact mode.
+    @State private var isDragLayoutActive = false
 
     private let counterRowStride: CGFloat = CounterRowMetrics.rowStride
     private let collectionHeaderStride: CGFloat = 56
@@ -33,10 +36,10 @@ struct CountersListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16, pinnedViews: [.sectionHeaders]) {
+                collectionSectionsStack
                 if showsUnassignedSection {
                     unassignedSection
                 }
-                collectionSectionsStack
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
@@ -52,10 +55,24 @@ struct CountersListView: View {
             if newCollection != nil { scheduleDragCancellation() }
         }
         .onChange(of: dragOverIndex) { _, new in
-            if new != nil { dragCancelTask?.cancel() }
+            if new != nil {
+                dragCancelTask?.cancel()
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    isDragLayoutActive = true
+                }
+            } else if draggingCounterID != nil || draggingCollection != nil {
+                scheduleDragCancellation()
+            }
         }
         .onChange(of: dragOverCollectionIndex) { _, new in
-            if new != nil { dragCancelTask?.cancel() }
+            if new != nil {
+                dragCancelTask?.cancel()
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                    isDragLayoutActive = true
+                }
+            } else if draggingCounterID != nil || draggingCollection != nil {
+                scheduleDragCancellation()
+            }
         }
     }
 
@@ -69,6 +86,7 @@ struct CountersListView: View {
             allCounters: allCounters,
             isReorderingEnabled: isReorderingEnabled,
             counterRowStride: counterRowStride,
+            isDragLayoutActive: isDragLayoutActive,
             draggingCounterID: $draggingCounterID,
             draggingCollection: $draggingCollection,
             dragOverIndex: $dragOverIndex,
@@ -105,6 +123,7 @@ struct CountersListView: View {
                     allCounters: allCounters,
                     isReorderingEnabled: isReorderingEnabled,
                     counterRowStride: counterRowStride,
+                    isDragLayoutActive: isDragLayoutActive,
                     draggingCounterID: $draggingCounterID,
                     draggingCollection: $draggingCollection,
                     dragOverIndex: $dragOverIndex,
@@ -177,6 +196,9 @@ struct CountersListView: View {
         draggingCollection = nil
         dragOverIndex = nil
         dragOverCollectionIndex = nil
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+            isDragLayoutActive = false
+        }
         isEndingDragSession = false
     }
 
@@ -186,10 +208,12 @@ struct CountersListView: View {
     private func scheduleDragCancellation() {
         dragCancelTask?.cancel()
         dragCancelTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled,
-                  dragOverIndex == nil,
-                  dragOverCollectionIndex == nil else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+            } catch {
+                return
+            }
+            guard dragOverIndex == nil, dragOverCollectionIndex == nil else { return }
             endDragSession()
         }
     }

@@ -19,6 +19,7 @@ struct CounterFolderSectionView: View {
     let allCounters: [Counter]
     let isReorderingEnabled: Bool
     let counterRowStride: CGFloat
+    let isDragLayoutActive: Bool
 
     @Binding var draggingCounterID: UUID?
     @Binding var draggingCollection: CounterCollection?
@@ -67,16 +68,12 @@ struct CounterFolderSectionView: View {
         isDraggingFromThisSection ? displayCounters : counters
     }
 
-    private var isCounterDragActive: Bool {
-        draggingCounterID != nil
-    }
-
     var body: some View {
         Section {
             VStack(spacing: 0) {
                 Divider()
                     .padding(.bottom, 6)
-                VStack(spacing: isCounterDragActive ? 0 : 8) {
+                VStack(spacing: isDragLayoutActive ? 0 : 8) {
                     if listCounters.isEmpty, isReorderingEnabled {
                         Color.clear
                             .frame(maxWidth: .infinity, minHeight: counterRowStride)
@@ -95,8 +92,8 @@ struct CounterFolderSectionView: View {
                                 onEdit: { onEditCounter(counter) },
                                 onDelete: { onDeleteCounter(counter) }
                             )
-                            .frame(height: isCounterDragActive ? counterRowStride : nil)
-                            if !isCounterDragActive, idx < listCounters.count - 1 {
+                            .frame(height: isDragLayoutActive ? counterRowStride : nil)
+                            if !isDragLayoutActive, idx < listCounters.count - 1 {
                                 Divider()
                                     .padding(.leading, CounterRowMetrics.titleLeadingInset)
                             }

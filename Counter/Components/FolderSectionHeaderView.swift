@@ -21,6 +21,8 @@ struct FolderSectionHeaderView: View {
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
 
+    @State private var headerWidth: CGFloat = 0
+
     var body: some View {
         let titleLabel = folderTitleLabel
 
@@ -51,6 +53,11 @@ struct FolderSectionHeaderView: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { headerWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in headerWidth = new }
+            })
             .contentShape(Rectangle())
             .opacity(isDragging ? 0.35 : 1)
             .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
@@ -73,7 +80,7 @@ struct FolderSectionHeaderView: View {
                         .fontWeight(.regular)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
-                        .frame(width: UIScreen.main.bounds.width - 24, height: 44, alignment: .leading)
+                        .frame(width: headerWidth, height: 44, alignment: .leading)
                 }
         } else {
             interactiveLabel

@@ -15,9 +15,16 @@ struct DraggableCounterRow: View {
     var onEdit: (() -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
+    @State private var rowWidth: CGFloat = 0
+
     var body: some View {
         CounterRowView(counter: counter)
             .counterRowCardBackground()
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in rowWidth = new }
+            })
             .contextMenu {
                 Button {
                     onEdit?()
@@ -48,7 +55,8 @@ struct DraggableCounterRow: View {
             .modifier(CounterDragModifier(
                 counter: counter,
                 isReorderingEnabled: isReorderingEnabled,
-                onDragStart: onDragStart
+                onDragStart: onDragStart,
+                rowWidth: rowWidth
             ))
     }
 }
@@ -57,6 +65,7 @@ struct CounterDragModifier: ViewModifier {
     let counter: Counter
     let isReorderingEnabled: Bool
     let onDragStart: () -> Void
+    let rowWidth: CGFloat
 
     func body(content: Content) -> some View {
         if isReorderingEnabled {
@@ -66,7 +75,7 @@ struct CounterDragModifier: ViewModifier {
             } preview: {
                 CounterRowView(counter: counter)
                     .counterRowCardBackground()
-                    .frame(width: UIScreen.main.bounds.width - 24, height: CounterRowMetrics.rowStride)
+                    .frame(width: rowWidth, height: CounterRowMetrics.rowStride)
                     .padding(4)
             }
         } else {
