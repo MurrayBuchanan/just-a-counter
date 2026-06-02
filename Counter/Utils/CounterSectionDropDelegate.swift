@@ -23,7 +23,7 @@ final class CounterHeaderDropBlockDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .cancel)
+        DropProposal(operation: .move)
     }
 
     func performDrop(info: DropInfo) -> Bool {

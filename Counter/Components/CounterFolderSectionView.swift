@@ -117,10 +117,6 @@ struct CounterFolderSectionView: View {
                 dragOverIndex: $dragOverIndex,
                 shouldAcceptDrop: { draggingCounterID != nil },
                 onPerformDrop: { index in
-                    guard !counters.isEmpty else {
-                        scheduleEndDragSession()
-                        return
-                    }
                     guard let draggingCounterID,
                           let draggingCounter = allCounters.first(where: { $0.uuid == draggingCounterID }) else {
                         scheduleEndDragSession()

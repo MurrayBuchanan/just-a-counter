@@ -39,11 +39,11 @@ struct CountersListView: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
-            .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
-                scheduleEndDragSession()
-                return false
-            })
         }
+        .onDrop(of: [.text], isTargeted: .constant(false), perform: { _ in
+            scheduleEndDragSession()
+            return false
+        })
     }
 
     // MARK: - Sections
