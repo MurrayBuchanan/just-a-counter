@@ -39,8 +39,8 @@ struct CounterView: View {
     private var layoutContent: some View {
         switch counter.layout {
         case .standard: standardLayout
-        case .compact:  compactLayout
         case .wide:     wideLayout
+        case .split:    splitLayout
         case .minimal:  minimalLayout
         }
     }
@@ -76,10 +76,10 @@ struct CounterView: View {
         .tint(.white)
     }
 
-    // MARK: - Compact
+    // MARK: - Wide
     // Full gradient background; value in the upper portion; two large tap buttons fill the lower portion.
 
-    private var compactLayout: some View {
+    private var wideLayout: some View {
         ZStack {
             gradientBackground
             VStack(spacing: 0) {
@@ -90,8 +90,8 @@ struct CounterView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 HStack(spacing: 16) {
-                    compactActionButton(systemImage: "minus") { changeValue(by: -1) }
-                    compactActionButton(systemImage: "plus")  { changeValue(by: 1) }
+                    wideActionButton(systemImage: "minus") { changeValue(by: -1) }
+                    wideActionButton(systemImage: "plus")  { changeValue(by: 1) }
                 }
                 .frame(height: 148)
                 .padding(.horizontal, 24)
@@ -105,11 +105,11 @@ struct CounterView: View {
         .tint(.white)
     }
 
-    // MARK: - Wide
+    // MARK: - Split
     // Full gradient background; the entire screen is split into left (−) / right (+) tap zones.
     // Value edit is triggered via the toolbar pencil so tap zones have no gesture conflicts.
 
-    private var wideLayout: some View {
+    private var splitLayout: some View {
         ZStack {
             gradientBackground
 
@@ -264,7 +264,7 @@ struct CounterView: View {
         }
     }
 
-    private func compactActionButton(systemImage: String, action: @escaping () -> Void) -> some View {
+    private func wideActionButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 36, weight: .semibold))

@@ -64,7 +64,7 @@ SwiftUI's built-in `List` move is not used. Instead, `CountersListView` implemen
 ### Themes & layout
 
 - **`ThemeManager`** / **`Theme`** — maps a string ID (stored in `Counter.themeName`) to a `Color` and a `LinearGradient`. Themes are static; there is no user-defined colour.
-- **`CounterLayoutStyle`** — `standard | compact | wide | minimal` enum, stored as `String` in `Counter.layoutStyle`.
+- **`CounterLayoutStyle`** — `standard | wide | split | minimal` enum (persisted as `standard`, `compact`, `wide`, `minimal`), stored as `String` in `Counter.layoutStyle`.
 
 ### View hierarchy
 

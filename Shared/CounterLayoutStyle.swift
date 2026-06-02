@@ -9,8 +9,8 @@ import Foundation
 
 enum CounterLayoutStyle: String, CaseIterable, Identifiable, Codable {
     case standard
-    case compact
-    case wide
+    case wide = "compact"
+    case split = "wide"
     case minimal
 
     var id: String { rawValue }
@@ -18,8 +18,8 @@ enum CounterLayoutStyle: String, CaseIterable, Identifiable, Codable {
     var displayName: String {
         switch self {
         case .standard: "Standard"
-        case .compact:  "Compact"
         case .wide:     "Wide"
+        case .split:    "Split"
         case .minimal:  "Minimal"
         }
     }
@@ -31,8 +31,8 @@ enum CounterLayoutStyle: String, CaseIterable, Identifiable, Codable {
     var systemImage: String {
         switch self {
         case .standard: "list.bullet"
-        case .compact:  "list.dash"
-        case .wide:     "rectangle.grid.1x2.fill"
+        case .wide:     "list.dash"
+        case .split:    "rectangle.grid.1x2.fill"
         case .minimal:  "text.alignleft"
         }
     }
