@@ -251,7 +251,7 @@ struct CountersListView: View {
 
     private var showsUnassignedSection: Bool {
         if trimmedSearchText.isEmpty {
-            return !unassignedCounters.isEmpty || draggingCounterID != nil
+            return !unassignedCounters.isEmpty || isDragLayoutActive
         }
         if unassignedFolderMatchesSearch { return true }
         return !unassignedCounters.isEmpty
