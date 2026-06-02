@@ -28,7 +28,7 @@ struct EditCollectionView: View {
                     TextField("Name", text: $name)
                 }
             }
-            .navigationTitle("Edit Folder")
+            .navigationTitle("Rename Folder")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

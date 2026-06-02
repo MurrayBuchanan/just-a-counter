@@ -33,6 +33,9 @@ enum CounterWidgetData {
         descriptor.fetchLimit = 1
 
         guard let counter = try context.fetch(descriptor).first else { return nil }
+        guard !counter.isLocked else {
+            return CounterSnapshot(counter: counter)
+        }
 
         counter.value = CounterValueBounds.clamp(counter.value + delta)
         counter.lastUpdated = Date()

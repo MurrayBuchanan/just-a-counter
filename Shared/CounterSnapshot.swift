@@ -14,6 +14,7 @@ struct CounterSnapshot: Codable, Equatable, Sendable {
     let iconName: String?
     let themeName: String
     let order: Int
+    let isLocked: Bool
 
     init(
         id: UUID,
@@ -23,7 +24,8 @@ struct CounterSnapshot: Codable, Equatable, Sendable {
         goalValue: Int?,
         iconName: String?,
         themeName: String,
-        order: Int = 0
+        order: Int = 0,
+        isLocked: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -33,6 +35,7 @@ struct CounterSnapshot: Codable, Equatable, Sendable {
         self.iconName = iconName
         self.themeName = themeName
         self.order = order
+        self.isLocked = isLocked
     }
 
     init(counter: Counter) {
@@ -44,6 +47,24 @@ struct CounterSnapshot: Codable, Equatable, Sendable {
         iconName = counter.iconName
         themeName = counter.themeName
         order = counter.order
+        isLocked = counter.isLocked
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        value = try container.decode(Int.self, forKey: .value)
+        step = try container.decode(Int.self, forKey: .step)
+        goalValue = try container.decodeIfPresent(Int.self, forKey: .goalValue)
+        iconName = try container.decodeIfPresent(String.self, forKey: .iconName)
+        themeName = try container.decode(String.self, forKey: .themeName)
+        order = try container.decodeIfPresent(Int.self, forKey: .order) ?? 0
+        isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, value, step, goalValue, iconName, themeName, order, isLocked
     }
 
     static let preview = CounterSnapshot(

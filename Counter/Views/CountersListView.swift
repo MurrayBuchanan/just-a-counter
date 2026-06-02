@@ -16,6 +16,8 @@ struct CountersListView: View {
     let searchText: String
 
     var onEditCounter: (Counter) -> Void
+    var onMoveCounter: (Counter, CounterCollection?) -> Void
+    var onDuplicateCounter: (Counter) -> Void
     var onDeleteCounter: (Counter) -> Void
     var onEditCollection: (CounterCollection) -> Void
     var onDeleteCollection: (CounterCollection) -> Void
@@ -84,6 +86,7 @@ struct CountersListView: View {
             collection: nil,
             counters: unassignedCounters,
             allCounters: allCounters,
+            collections: collections,
             isReorderingEnabled: isReorderingEnabled,
             counterRowStride: counterRowStride,
             isDragLayoutActive: isDragLayoutActive,
@@ -91,6 +94,8 @@ struct CountersListView: View {
             draggingCollection: $draggingCollection,
             dragOverIndex: $dragOverIndex,
             onEditCounter: onEditCounter,
+            onMoveCounter: onMoveCounter,
+            onDuplicateCounter: onDuplicateCounter,
             onDeleteCounter: onDeleteCounter,
             onBeginCounterDrag: { counter, index in
                 beginCounterDrag(counter, at: index)
@@ -121,6 +126,7 @@ struct CountersListView: View {
                     collection: collection,
                     counters: filteredCounters(in: collection),
                     allCounters: allCounters,
+                    collections: collections,
                     isReorderingEnabled: isReorderingEnabled,
                     counterRowStride: counterRowStride,
                     isDragLayoutActive: isDragLayoutActive,
@@ -128,6 +134,8 @@ struct CountersListView: View {
                     draggingCollection: $draggingCollection,
                     dragOverIndex: $dragOverIndex,
                     onEditCounter: onEditCounter,
+                    onMoveCounter: onMoveCounter,
+                    onDuplicateCounter: onDuplicateCounter,
                     onDeleteCounter: onDeleteCounter,
                     onEditCollection: onEditCollection,
                     onDeleteCollection: onDeleteCollection,

@@ -30,12 +30,15 @@ struct FolderSectionHeaderView: View {
             titleLabel.contextMenu {
                 if let onEdit {
                     Button(action: onEdit) {
-                        Label("Edit", systemImage: "pencil")
+                        Label("Rename Folder", systemImage: "pencil")
                     }
+                }
+                if onEdit != nil, onDelete != nil {
+                    Divider()
                 }
                 if let onDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label("Delete", systemImage: "trash")
+                        Label("Delete Folder", systemImage: "trash")
                     }
                 }
             }

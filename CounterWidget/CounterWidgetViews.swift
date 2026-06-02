@@ -50,11 +50,22 @@ struct CounterWidgetContentView: View {
 
             Spacer(minLength: isMedium ? 10 : 6)
 
-            CounterWidgetControlStrip(
-                height: controlHeight,
-                minusIntent: AdjustCounterIntent(counter: entity, delta: -step),
-                plusIntent: AdjustCounterIntent(counter: entity, delta: step)
-            )
+            if counter.isLocked {
+                HStack {
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(labelColor.opacity(0.72))
+                    Spacer()
+                }
+                .frame(height: controlHeight)
+            } else {
+                CounterWidgetControlStrip(
+                    height: controlHeight,
+                    minusIntent: AdjustCounterIntent(counter: entity, delta: -step),
+                    plusIntent: AdjustCounterIntent(counter: entity, delta: step)
+                )
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(contentPadding)

@@ -56,6 +56,9 @@ final class Counter {
     // Reset button
     var showsResetButton: Bool = false
     var resetToValue: Int = 0
+
+    /// When true, the value cannot be changed from the list, detail screen, or widget.
+    var isLocked: Bool = false
     
     // Theme selection
     var themeName: String
@@ -81,6 +84,7 @@ final class Counter {
         isCountingUp: Bool = true,
         showsResetButton: Bool = false,
         resetToValue: Int = 0,
+        isLocked: Bool = false,
         order: Int = 0,
         themeName: String = "blue",
         layoutStyle: String = CounterLayoutStyle.standard.rawValue,
@@ -99,6 +103,7 @@ final class Counter {
         self.isCountingUp = isCountingUp
         self.showsResetButton = showsResetButton
         self.resetToValue = resetToValue
+        self.isLocked = isLocked
         self.order = order
         self.themeName = themeName
         self.layoutStyle = layoutStyle

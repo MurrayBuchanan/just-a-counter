@@ -60,20 +60,29 @@ struct CounterRowView: View {
                 isActive = true
             }
 
-            Stepper(
-                value: $counter.value,
-                in: CounterValueBounds.range,
-                step: max(counter.step, 1)
-            ) {
-                EmptyView()
-            }
-            .labelsHidden()
-            .onChange(of: counter.value) { _, _ in
-                counter.lastUpdated = Date()
-                WidgetReloader.scheduleReload(for: counter)
+            if counter.isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 70, height: 32)
+                    .accessibilityLabel("Locked")
+            } else {
+                Stepper(
+                    value: $counter.value,
+                    in: CounterValueBounds.range,
+                    step: max(counter.step, 1)
+                ) {
+                    EmptyView()
+                }
+                .labelsHidden()
+                .onChange(of: counter.value) { _, _ in
+                    counter.lastUpdated = Date()
+                    WidgetReloader.scheduleReload(for: counter)
+                }
             }
         }
         .animation(.easeInOut(duration: 0.2), value: counter.value)
+        .animation(.easeInOut(duration: 0.2), value: counter.isLocked)
         .background(
             NavigationLink(destination: CounterView(counter: counter), isActive: $isActive) {
                 EmptyView()

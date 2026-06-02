@@ -88,6 +88,8 @@ struct ContentView: View {
                 allCounters: allCounters,
                 searchText: searchText,
                 onEditCounter: { counterToEdit = $0 },
+                onMoveCounter: moveCounter,
+                onDuplicateCounter: duplicateCounter,
                 onDeleteCounter: { counter in
                     counterToDelete = counter
                     showingDeleteConfirmation = true
@@ -169,6 +171,71 @@ struct ContentView: View {
         let unassignedFolderMatch = hasUnassigned && CountersListView.unassignedFolderTitle
             .localizedCaseInsensitiveContains(trimmedSearchText)
         return !counterMatch && !folderMatch && !unassignedFolderMatch
+    }
+
+    private func moveCounter(_ counter: Counter, to collection: CounterCollection?) {
+        let destinationIndex: Int
+        if let collection {
+            destinationIndex = collection.counters.filter { $0 !== counter }.count
+        } else {
+            destinationIndex = allCounters.filter { $0.collection == nil && $0 !== counter }.count
+        }
+        CounterReorder.moveCounter(
+            counter,
+            to: collection,
+            at: destinationIndex,
+            allCounters: allCounters
+        )
+        WidgetReloader.sync(counter)
+    }
+
+    private func duplicateCounter(_ source: Counter) {
+        let siblings: [Counter]
+        if let collection = source.collection {
+            siblings = collection.counters
+        } else {
+            siblings = allCounters.filter { $0.collection == nil }
+        }
+        let newOrder = (siblings.map(\.order).max() ?? -1) + 1
+
+        let copy = Counter(
+            name: duplicateName(for: source.name),
+            value: source.value,
+            dailyIncrement: source.dailyIncrement,
+            step: source.step,
+            iconName: source.iconName,
+            goalValue: source.goalValue,
+            goalDate: source.goalDate,
+            isCountingUp: source.isCountingUp,
+            showsResetButton: source.showsResetButton,
+            resetToValue: source.resetToValue,
+            isLocked: source.isLocked,
+            order: newOrder,
+            themeName: source.themeName,
+            layoutStyle: source.layoutStyle,
+            collection: source.collection
+        )
+        context.insert(copy)
+        if let collection = source.collection {
+            var ordered = collection.counters.sorted { $0.order < $1.order }
+            ordered.append(copy)
+            for (index, counter) in ordered.enumerated() {
+                counter.order = index
+            }
+            collection.counters = ordered
+        }
+        WidgetReloader.sync(copy)
+        WidgetReloader.reloadCounterWidget()
+    }
+
+    private func duplicateName(for name: String) -> String {
+        let base = "\(name) Copy"
+        guard allCounters.contains(where: { $0.name == base }) else { return base }
+        var index = 2
+        while allCounters.contains(where: { $0.name == "\(name) Copy \(index)" }) {
+            index += 1
+        }
+        return "\(name) Copy \(index)"
     }
 
     private func deleteCounter(_ counter: Counter) {

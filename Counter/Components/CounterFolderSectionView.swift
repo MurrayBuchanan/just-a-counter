@@ -17,6 +17,7 @@ struct CounterFolderSectionView: View {
     let collection: CounterCollection?
     let counters: [Counter]
     let allCounters: [Counter]
+    let collections: [CounterCollection]
     let isReorderingEnabled: Bool
     let counterRowStride: CGFloat
     let isDragLayoutActive: Bool
@@ -26,6 +27,8 @@ struct CounterFolderSectionView: View {
     @Binding var dragOverIndex: CounterDropLocation?
 
     var onEditCounter: (Counter) -> Void
+    var onMoveCounter: (Counter, CounterCollection?) -> Void
+    var onDuplicateCounter: (Counter) -> Void
     var onDeleteCounter: (Counter) -> Void
     var onEditCollection: ((CounterCollection) -> Void)?
     var onDeleteCollection: ((CounterCollection) -> Void)?
@@ -84,12 +87,15 @@ struct CounterFolderSectionView: View {
                             }
                             DraggableCounterRow(
                                 counter: counter,
+                                collections: collections,
                                 isReorderingEnabled: isReorderingEnabled,
                                 onDragStart: {
                                     let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
                                     onBeginCounterDrag(counter, index)
                                 },
                                 onEdit: { onEditCounter(counter) },
+                                onMove: { onMoveCounter(counter, $0) },
+                                onDuplicate: { onDuplicateCounter(counter) },
                                 onDelete: { onDeleteCounter(counter) }
                             )
                             .frame(height: isDragLayoutActive ? counterRowStride : nil)

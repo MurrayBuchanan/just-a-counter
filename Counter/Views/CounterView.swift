@@ -61,15 +61,17 @@ struct CounterView: View {
                     goalLabel(size: 32, color: .white.opacity(0.7))
                 }
                 Spacer()
-                HStack(spacing: 52) {
-                    circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.2)) {
-                        changeValue(by: -1)
+                if !counter.isLocked {
+                    HStack(spacing: 52) {
+                        circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.2)) {
+                            changeValue(by: -1)
+                        }
+                        circleButton(systemImage: "plus", foreground: .white, background: .white.opacity(0.3)) {
+                            changeValue(by: 1)
+                        }
                     }
-                    circleButton(systemImage: "plus", foreground: .white, background: .white.opacity(0.3)) {
-                        changeValue(by: 1)
-                    }
+                    .padding(.bottom, 52)
                 }
-                .padding(.bottom, 52)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,13 +94,15 @@ struct CounterView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                HStack(spacing: 16) {
-                    wideActionButton(systemImage: "minus") { changeValue(by: -1) }
-                    wideActionButton(systemImage: "plus")  { changeValue(by: 1) }
+                if !counter.isLocked {
+                    HStack(spacing: 16) {
+                        wideActionButton(systemImage: "minus") { changeValue(by: -1) }
+                        wideActionButton(systemImage: "plus")  { changeValue(by: 1) }
+                    }
+                    .frame(height: 148)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 40)
                 }
-                .frame(height: 148)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 40)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -116,34 +120,36 @@ struct CounterView: View {
         ZStack {
             gradientBackground
 
-            HStack(spacing: 0) {
-                Button { changeValue(by: -1) } label: {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 26, weight: .light))
-                            .foregroundStyle(.white.opacity(0.35))
-                            .padding(.leading, 28)
-                        Spacer()
+            if !counter.isLocked {
+                HStack(spacing: 0) {
+                    Button { changeValue(by: -1) } label: {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 26, weight: .light))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .padding(.leading, 28)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .allowsHitTesting(!isEditingValue)
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(!isEditingValue)
 
-                Button { changeValue(by: 1) } label: {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 26, weight: .light))
-                            .foregroundStyle(.white.opacity(0.35))
-                            .padding(.trailing, 28)
+                    Button { changeValue(by: 1) } label: {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 26, weight: .light))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .padding(.trailing, 28)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(!isEditingValue)
                 }
-                .buttonStyle(.plain)
-                .allowsHitTesting(!isEditingValue)
             }
 
             // Value sits above the tap zones and does not block them
@@ -187,15 +193,17 @@ struct CounterView: View {
                     goalLabel(size: 36, color: .white.opacity(0.35))
                 }
                 Spacer()
-                HStack(spacing: 52) {
-                    circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.12)) {
-                        changeValue(by: -1)
+                if !counter.isLocked {
+                    HStack(spacing: 52) {
+                        circleButton(systemImage: "minus", foreground: .white, background: .white.opacity(0.12)) {
+                            changeValue(by: -1)
+                        }
+                        circleButton(systemImage: "plus", foreground: .black, background: .white) {
+                            changeValue(by: 1)
+                        }
                     }
-                    circleButton(systemImage: "plus", foreground: .black, background: .white) {
-                        changeValue(by: 1)
-                    }
+                    .padding(.bottom, 52)
                 }
-                .padding(.bottom, 52)
                 if let goal = counter.goalValue, goal > 0 {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -223,7 +231,7 @@ struct CounterView: View {
 
     @ToolbarContentBuilder
     private var trailingToolbar: some ToolbarContent {
-        if counter.showsResetButton {
+        if counter.showsResetButton, !counter.isLocked {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if valueBeforeReset != nil, !didUndoReset {
                     toolbarIconButton(systemName: "arrow.uturn.backward", label: "Undo Reset", action: undoReset)
@@ -234,10 +242,10 @@ struct CounterView: View {
                 toolbarIconButton(systemName: "arrow.counterclockwise", label: "Reset", action: resetCounter)
             }
         }
-        if counter.layout == .split, counter.showsResetButton {
+        if counter.layout == .split, counter.showsResetButton, !counter.isLocked {
             ToolbarSpacer(.fixed, placement: .topBarTrailing)
         }
-        if counter.layout == .split {
+        if counter.layout == .split, !counter.isLocked {
             ToolbarItem(placement: .topBarTrailing) {
                 toolbarIconButton(systemName: "pencil.line", label: "Edit Value", action: beginEditingValue)
             }
@@ -268,6 +276,12 @@ struct CounterView: View {
                 .focused($isValueFieldFocused)
                 .multilineTextAlignment(.center)
                 .fixedSize()
+        } else if counter.isLocked {
+            Text("\(counter.value)")
+                .font(.system(size: size, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: counter.value)
         } else {
             Button { beginEditingValue() } label: {
                 Text("\(counter.value)")
@@ -313,6 +327,7 @@ struct CounterView: View {
     }
 
     private func beginEditingValue() {
+        guard !counter.isLocked else { return }
         editedValueText = "\(counter.value)"
         isEditingValue = true
         isValueFieldFocused = true
@@ -329,11 +344,13 @@ struct CounterView: View {
     }
 
     private func changeValue(by amount: Int) {
+        guard !counter.isLocked else { return }
         applyValue(CounterValueBounds.clamp(counter.value + amount * counter.step))
         clearResetHistory()
     }
 
     private func resetCounter() {
+        guard !counter.isLocked else { return }
         let target = CounterValueBounds.clamp(counter.resetToValue)
         guard counter.value != target else { return }
         valueBeforeReset = counter.value
