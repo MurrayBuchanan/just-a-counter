@@ -71,7 +71,8 @@ struct EditCounterView: View {
                         value: $value,
                         range: CounterValueBounds.range,
                         focus: $focusedNumberField,
-                        field: .startValue
+                        field: .startValue,
+                        showsStepper: false
                     )
 
                     StepperNumberField(
@@ -143,7 +144,8 @@ struct EditCounterView: View {
                             value: $resetToValue,
                             range: CounterValueBounds.range,
                             focus: $focusedNumberField,
-                            field: .resetToValue
+                            field: .resetToValue,
+                            showsStepper: false
                         )
                     }
                 } header: {

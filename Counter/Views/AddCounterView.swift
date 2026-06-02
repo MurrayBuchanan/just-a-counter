@@ -53,7 +53,8 @@ struct AddCounterView: View {
                         value: $value,
                         range: CounterValueBounds.range,
                         focus: $focusedNumberField,
-                        field: .startValue
+                        field: .startValue,
+                        showsStepper: false
                     )
                     
                     StepperNumberField(
@@ -125,7 +126,8 @@ struct AddCounterView: View {
                             value: $resetToValue,
                             range: CounterValueBounds.range,
                             focus: $focusedNumberField,
-                            field: .resetToValue
+                            field: .resetToValue,
+                            showsStepper: false
                         )
                     }
                 } header: {
@@ -227,6 +229,7 @@ struct StepperNumberField<Field: Hashable>: View {
     let range: ClosedRange<Int>
     var focus: FocusState<Field?>.Binding
     let field: Field
+    var showsStepper: Bool = true
 
     var body: some View {
         HStack(spacing: 12) {
@@ -241,8 +244,10 @@ struct StepperNumberField<Field: Hashable>: View {
                 .onChange(of: value) { _, newValue in
                     value = min(max(newValue, range.lowerBound), range.upperBound)
                 }
-            Stepper("", value: $value, in: range)
-                .labelsHidden()
+            if showsStepper {
+                Stepper("", value: $value, in: range)
+                    .labelsHidden()
+            }
         }
     }
 }
