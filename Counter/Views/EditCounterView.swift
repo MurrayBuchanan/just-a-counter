@@ -27,12 +27,14 @@ struct EditCounterView: View {
     @State private var hasGoal: Bool
     @State private var goalValue: Int
     @State private var isCountingUp: Bool
+    @State private var showsResetButton: Bool
+    @State private var resetToValue: Int
     @State private var customiseLayout: Bool
     @State private var didConfirm = false
     @FocusState private var focusedNumberField: NumberField?
 
     private enum NumberField {
-        case startValue, dailyIncrement, stepSize, goalValue
+        case startValue, dailyIncrement, stepSize, goalValue, resetToValue
     }
 
     init(counter: Counter, collections: [CounterCollection]) {
@@ -49,6 +51,8 @@ struct EditCounterView: View {
         _hasGoal = State(initialValue: counter.goalValue != nil)
         _goalValue = State(initialValue: counter.goalValue ?? 1)
         _isCountingUp = State(initialValue: counter.isCountingUp)
+        _showsResetButton = State(initialValue: counter.showsResetButton)
+        _resetToValue = State(initialValue: counter.resetToValue)
         _customiseLayout = State(initialValue: counter.layout != .standard)
     }
 
@@ -131,6 +135,26 @@ struct EditCounterView: View {
                 }
 
                 Section {
+                    Toggle("Show Reset Button", isOn: $showsResetButton)
+
+                    if showsResetButton {
+                        StepperNumberField(
+                            title: "Reset To",
+                            value: $resetToValue,
+                            range: CounterValueBounds.range,
+                            focus: $focusedNumberField,
+                            field: .resetToValue
+                        )
+                    }
+                } header: {
+                    Text("Reset")
+                } footer: {
+                    if showsResetButton {
+                        Text("A reset button appears in the navigation bar and sets the counter back to this value.")
+                    }
+                }
+
+                Section {
                     Toggle("Customise Layout", isOn: $customiseLayout)
 
                     if customiseLayout {
@@ -198,6 +222,8 @@ struct EditCounterView: View {
         counter.goalValue = hasGoal ? goalValue : nil
         counter.goalDate = nil
         counter.isCountingUp = hasGoal ? isCountingUp : true
+        counter.showsResetButton = showsResetButton
+        counter.resetToValue = resetToValue
 
         updateCollectionAssignment()
         WidgetReloader.sync(counter)

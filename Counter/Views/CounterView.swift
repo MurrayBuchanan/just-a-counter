@@ -12,6 +12,8 @@ struct CounterView: View {
     @State private var isEditingValue = false
     @State private var editedValueText = ""
     @FocusState private var isValueFieldFocused: Bool
+    @State private var valueBeforeReset: Int?
+    @State private var didUndoReset = false
 
     private var theme: Theme { ThemeManager.theme(for: counter) }
 
@@ -28,6 +30,7 @@ struct CounterView: View {
                     Spacer()
                     Button("Done") { commitEditedValue() }
                 }
+                trailingToolbar
             }
             .statusBar(hidden: true)
             .onChange(of: isValueFieldFocused) { _, focused in
@@ -166,13 +169,6 @@ struct CounterView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { beginEditingValue() } label: {
-                    Image(systemName: "pencil")
-                }
-            }
-        }
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbarBackground(.clear, for: .navigationBar)
         .tint(.white)
@@ -224,6 +220,36 @@ struct CounterView: View {
     }
 
     // MARK: - Shared helpers
+
+    @ToolbarContentBuilder
+    private var trailingToolbar: some ToolbarContent {
+        if counter.showsResetButton {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if valueBeforeReset != nil, !didUndoReset {
+                    toolbarIconButton(systemName: "arrow.uturn.backward", label: "Undo Reset", action: undoReset)
+                }
+                if didUndoReset {
+                    toolbarIconButton(systemName: "arrow.uturn.forward", label: "Redo Reset", action: redoReset)
+                }
+                toolbarIconButton(systemName: "arrow.counterclockwise", label: "Reset", action: resetCounter)
+            }
+        }
+        if counter.layout == .split, counter.showsResetButton {
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+        }
+        if counter.layout == .split {
+            ToolbarItem(placement: .topBarTrailing) {
+                toolbarIconButton(systemName: "pencil.line", label: "Edit Value", action: beginEditingValue)
+            }
+        }
+    }
+
+    private func toolbarIconButton(systemName: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+        }
+        .accessibilityLabel(label)
+    }
 
     private var gradientBackground: some View {
         theme.gradient
@@ -298,16 +324,42 @@ struct CounterView: View {
         isValueFieldFocused = false
         guard let newValue = Int(editedValueText.trimmingCharacters(in: .whitespaces)),
               CounterValueBounds.range.contains(newValue) else { return }
-        withAnimation {
-            counter.value = newValue
-            counter.lastUpdated = Date()
-            WidgetReloader.scheduleReload(for: counter)
-        }
+        applyValue(newValue)
+        clearResetHistory()
     }
 
     private func changeValue(by amount: Int) {
+        applyValue(CounterValueBounds.clamp(counter.value + amount * counter.step))
+        clearResetHistory()
+    }
+
+    private func resetCounter() {
+        let target = CounterValueBounds.clamp(counter.resetToValue)
+        guard counter.value != target else { return }
+        valueBeforeReset = counter.value
+        didUndoReset = false
+        applyValue(target)
+    }
+
+    private func undoReset() {
+        guard let previous = valueBeforeReset else { return }
+        applyValue(previous)
+        didUndoReset = true
+    }
+
+    private func redoReset() {
+        applyValue(CounterValueBounds.clamp(counter.resetToValue))
+        didUndoReset = false
+    }
+
+    private func clearResetHistory() {
+        valueBeforeReset = nil
+        didUndoReset = false
+    }
+
+    private func applyValue(_ newValue: Int) {
         withAnimation {
-            counter.value = CounterValueBounds.clamp(counter.value + amount * counter.step)
+            counter.value = newValue
             counter.lastUpdated = Date()
             WidgetReloader.scheduleReload(for: counter)
         }

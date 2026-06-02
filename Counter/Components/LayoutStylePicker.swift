@@ -59,15 +59,14 @@ private struct LayoutPickerCell: View {
 
 private struct LayoutPlaceholder: View {
     let style: CounterLayoutStyle
+    @Environment(\.colorScheme) private var colorScheme
 
-    /// Grouped form cells are white in light mode, so `secondarySystemBackground` vanishes there;
-    /// dark mode keeps the elevated gray surface that already reads correctly.
-    private var surface: Color {
-        Color(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .light
-                ? .tertiarySystemFill
-                : .secondarySystemBackground
-        })
+    /// Dark mode uses an elevated surface; light mode leaves the form cell showing through.
+    @ViewBuilder
+    private var surface: some View {
+        if colorScheme == .dark {
+            Color(.secondarySystemBackground)
+        }
     }
 
     private var minimalSurface: Color {

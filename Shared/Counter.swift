@@ -52,6 +52,10 @@ final class Counter {
     var goalValue: Int?
     var goalDate: Date?
     var isCountingUp: Bool
+
+    // Reset button
+    var showsResetButton: Bool = false
+    var resetToValue: Int = 0
     
     // Theme selection
     var themeName: String
@@ -75,6 +79,8 @@ final class Counter {
         goalValue: Int? = nil,
         goalDate: Date? = nil,
         isCountingUp: Bool = true,
+        showsResetButton: Bool = false,
+        resetToValue: Int = 0,
         order: Int = 0,
         themeName: String = "blue",
         layoutStyle: String = CounterLayoutStyle.standard.rawValue,
@@ -91,6 +97,8 @@ final class Counter {
         self.goalValue = goalValue
         self.goalDate = goalDate
         self.isCountingUp = isCountingUp
+        self.showsResetButton = showsResetButton
+        self.resetToValue = resetToValue
         self.order = order
         self.themeName = themeName
         self.layoutStyle = layoutStyle

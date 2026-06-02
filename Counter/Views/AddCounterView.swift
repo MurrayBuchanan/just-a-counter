@@ -28,11 +28,14 @@ struct AddCounterView: View {
     @State private var hasGoal = false
     @State private var goalValue: Int = 1
     @State private var isCountingUp = true
+
+    @State private var showsResetButton = false
+    @State private var resetToValue: Int = 0
     @State private var didConfirm = false
     @FocusState private var focusedNumberField: NumberField?
 
     private enum NumberField {
-        case startValue, dailyIncrement, stepSize, goalValue
+        case startValue, dailyIncrement, stepSize, goalValue, resetToValue
     }
 
     private var canSave: Bool {
@@ -112,6 +115,26 @@ struct AddCounterView: View {
                              : "Count down until the counter reaches zero.")
                     }
                 }
+
+                Section {
+                    Toggle("Show Reset Button", isOn: $showsResetButton)
+
+                    if showsResetButton {
+                        StepperNumberField(
+                            title: "Reset To",
+                            value: $resetToValue,
+                            range: CounterValueBounds.range,
+                            focus: $focusedNumberField,
+                            field: .resetToValue
+                        )
+                    }
+                } header: {
+                    Text("Reset")
+                } footer: {
+                    if showsResetButton {
+                        Text("A reset button appears in the navigation bar and sets the counter back to this value.")
+                    }
+                }
                 
                 Section {
                     Toggle("Customise Layout", isOn: $customiseLayout)
@@ -179,6 +202,8 @@ struct AddCounterView: View {
             iconName: iconName,
             goalValue: hasGoal ? goalValue : nil,
             isCountingUp: hasGoal ? isCountingUp : true,
+            showsResetButton: showsResetButton,
+            resetToValue: resetToValue,
             themeName: selectedThemeName,
             layoutStyle: customiseLayout ? selectedLayout.rawValue : CounterLayoutStyle.standard.rawValue,
             collection: selectedCollection
