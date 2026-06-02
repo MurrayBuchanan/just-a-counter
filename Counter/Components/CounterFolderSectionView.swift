@@ -46,9 +46,10 @@ struct CounterFolderSectionView: View {
         return draggedCounter.collection == nil
     }
 
-    /// Excludes the dragged counter from layout so its slot can be replaced by an insertion gap.
+    /// Excludes the dragged counter from layout once the drag has entered a drop target.
+    /// Keeping it visible until then prevents it disappearing during a context menu long-press.
     private var displayCounters: [Counter] {
-        guard isDraggingFromThisSection, let draggingCounterID else { return counters }
+        guard isDraggingFromThisSection, let draggingCounterID, dragOverIndex != nil else { return counters }
         return counters.filter { $0.uuid != draggingCounterID }
     }
 
@@ -165,17 +166,7 @@ struct CounterFolderSectionView: View {
     }
 
     private func showsInsertionGap(before index: Int) -> Bool {
-        guard draggingCounterID != nil, !listCounters.isEmpty else { return false }
-
-        if let dragOverIndex, dragOverIndex.collectionID == collectionID {
-            return dragOverIndex.index == index
-        }
-
-        // Keep source slot open while the drag hasn't entered a drop target yet.
-        if isDraggingFromThisSection, dragOverIndex == nil, let source = draggedSourceIndex {
-            return index == source
-        }
-
-        return false
+        guard let dragOverIndex, draggingCounterID != nil, !listCounters.isEmpty else { return false }
+        return dragOverIndex.collectionID == collectionID && dragOverIndex.index == index
     }
 }

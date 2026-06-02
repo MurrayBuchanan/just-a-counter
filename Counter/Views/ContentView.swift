@@ -182,7 +182,8 @@ struct ContentView: View {
         guard !trimmedSearchText.isEmpty else { return false }
         let counterMatch = allCounters.contains { $0.name.localizedCaseInsensitiveContains(trimmedSearchText) }
         let folderMatch = collections.contains { $0.name.localizedCaseInsensitiveContains(trimmedSearchText) }
-        let unassignedFolderMatch = CountersListView.unassignedFolderTitle
+        let hasUnassigned = allCounters.contains { $0.collection == nil }
+        let unassignedFolderMatch = hasUnassigned && CountersListView.unassignedFolderTitle
             .localizedCaseInsensitiveContains(trimmedSearchText)
         return !counterMatch && !folderMatch && !unassignedFolderMatch
     }
