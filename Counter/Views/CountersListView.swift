@@ -26,7 +26,6 @@ struct CountersListView: View {
     @State private var dragOverCollectionIndex: Int? = nil
     @State private var draggingCounterID: UUID? = nil
     @State private var draggingCollection: CounterCollection? = nil
-    @State private var isEndingDragSession = false
     @State private var dragCancelTask: Task<Void, Never>?
     /// True only after the drag has entered its first drop target — used to gate layout changes
     /// so a context-menu long-press never triggers compact mode.
@@ -65,7 +64,7 @@ struct CountersListView: View {
         .onChange(of: dragOverIndex) { _, new in
             if new != nil {
                 dragCancelTask?.cancel()
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                withAnimation(.snappy) {
                     isDragLayoutActive = true
                 }
             } else if draggingCounterID != nil || draggingCollection != nil {
@@ -75,7 +74,7 @@ struct CountersListView: View {
         .onChange(of: dragOverCollectionIndex) { _, new in
             if new != nil {
                 dragCancelTask?.cancel()
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                withAnimation(.snappy) {
                     isDragLayoutActive = true
                 }
             } else if draggingCounterID != nil || draggingCollection != nil {
@@ -206,9 +205,7 @@ struct CountersListView: View {
 
     private func beginCounterDrag(_ counter: Counter, at _: Int) {
         draggingCollection = nil
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-            draggingCounterID = counter.uuid
-        }
+        draggingCounterID = counter.uuid
     }
 
     private func scheduleEndDragSession() {
@@ -221,18 +218,14 @@ struct CountersListView: View {
     private func endDragSession() {
         dragCancelTask?.cancel()
         dragCancelTask = nil
-        guard !isEndingDragSession else { return }
         guard draggingCounterID != nil || draggingCollection != nil else { return }
-        isEndingDragSession = true
-
         draggingCounterID = nil
         draggingCollection = nil
         dragOverIndex = nil
         dragOverCollectionIndex = nil
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+        withAnimation(.smooth(duration: 0.35)) {
             isDragLayoutActive = false
         }
-        isEndingDragSession = false
     }
 
     /// Cancels the drag state if no drop target has been entered within 500ms.

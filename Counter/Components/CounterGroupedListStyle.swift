@@ -9,8 +9,8 @@ import SwiftUI
 import UIKit
 
 enum CounterGroupedListStyle {
-    /// Notes-style rounded group (~12pt on current iOS).
-    static let sectionCornerRadius: CGFloat = 12
+    /// Inset grouped folder card — iOS 26 uses noticeably rounder corners than older releases.
+    static let sectionCornerRadius: CGFloat = 20
     static let horizontalInset: CGFloat = 16
     /// Inset grouped: space above each section header after the first (card → next header).
     static let sectionSpacing: CGFloat = 20

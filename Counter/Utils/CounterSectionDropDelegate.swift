@@ -38,18 +38,17 @@ final class CounterSectionDropDelegate: DropDelegate {
     let collectionID: UUID?
     let counterCount: Int
     let rowStride: CGFloat
-    let topInset: CGFloat
     @Binding var dragOverIndex: CounterDropLocation?
     let onPerformDrop: (Int) -> Void
     let onInvalidDrop: () -> Void
 
     private var lastInsertionIndex: Int?
+    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
 
     init(
         collectionID: UUID?,
         counterCount: Int,
         rowStride: CGFloat,
-        topInset: CGFloat,
         dragOverIndex: Binding<CounterDropLocation?>,
         onPerformDrop: @escaping (Int) -> Void,
         onInvalidDrop: @escaping () -> Void
@@ -57,7 +56,6 @@ final class CounterSectionDropDelegate: DropDelegate {
         self.collectionID = collectionID
         self.counterCount = counterCount
         self.rowStride = rowStride
-        self.topInset = topInset
         self._dragOverIndex = dragOverIndex
         self.onPerformDrop = onPerformDrop
         self.onInvalidDrop = onInvalidDrop
@@ -69,6 +67,7 @@ final class CounterSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        feedbackGenerator.prepare()
         updateInsertionIndex(for: info.location)
     }
 
@@ -84,11 +83,10 @@ final class CounterSectionDropDelegate: DropDelegate {
             dragOverIndex = nil
             lastInsertionIndex = nil
         }
-        guard let dragOverIndex, dragOverIndex.collectionID == collectionID else {
-            onInvalidDrop()
-            return false
-        }
-        onPerformDrop(dragOverIndex.index)
+        let index = dragOverIndex?.collectionID == collectionID
+            ? dragOverIndex!.index
+            : insertionIndex(for: info.location)
+        onPerformDrop(index)
         return true
     }
 
@@ -96,15 +94,14 @@ final class CounterSectionDropDelegate: DropDelegate {
         let index = insertionIndex(for: location)
         guard index != lastInsertionIndex else { return }
         lastInsertionIndex = index
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+        withAnimation(.snappy) {
             dragOverIndex = CounterDropLocation(collectionID: collectionID, index: index)
         }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        feedbackGenerator.impactOccurred()
     }
 
     private func insertionIndex(for location: CGPoint) -> Int {
-        let adjustedY = max(0, location.y - topInset)
-        let raw = Int((adjustedY / rowStride).rounded())
+        let raw = Int((max(0, location.y) / rowStride).rounded())
         return min(max(raw, 0), counterCount)
     }
 }
@@ -118,6 +115,7 @@ final class CollectionSectionDropDelegate: DropDelegate {
     let onPerformDrop: (Int) -> Void
 
     private var lastInsertionIndex: Int?
+    private let feedbackGenerator = UIImpactFeedbackGenerator(style: .light)
 
     init(
         collectionCount: Int,
@@ -137,6 +135,7 @@ final class CollectionSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        feedbackGenerator.prepare()
         updateInsertionIndex(for: info.location)
     }
 
@@ -157,14 +156,14 @@ final class CollectionSectionDropDelegate: DropDelegate {
         let index = insertionIndex(for: location)
         guard index != lastInsertionIndex else { return }
         lastInsertionIndex = index
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+        withAnimation(.snappy) {
             dragOverCollectionIndex = index
         }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        feedbackGenerator.impactOccurred()
     }
 
     private func insertionIndex(for location: CGPoint) -> Int {
-        let raw = Int((max(0, location.y) / rowStride).rounded(.down))
+        let raw = Int((max(0, location.y) / rowStride).rounded())
         return min(max(raw, 0), collectionCount)
     }
 }

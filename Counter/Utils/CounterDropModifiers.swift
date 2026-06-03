@@ -30,7 +30,6 @@ struct CounterSectionDropModifier: ViewModifier {
     let collectionID: UUID?
     let counterCount: Int
     let rowStride: CGFloat
-    let topInset: CGFloat
     @Binding var dragOverIndex: CounterDropLocation?
     let shouldAcceptDrop: () -> Bool
     let onPerformDrop: (Int) -> Void
@@ -45,7 +44,6 @@ struct CounterSectionDropModifier: ViewModifier {
                     collectionID: collectionID,
                     counterCount: counterCount,
                     rowStride: rowStride,
-                    topInset: topInset,
                     dragOverIndex: $dragOverIndex,
                     onPerformDrop: onPerformDrop,
                     onInvalidDrop: onInvalidDrop

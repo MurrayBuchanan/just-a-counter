@@ -95,7 +95,7 @@ struct FolderSectionHeaderView: View {
             })
             .opacity(isDragging ? 0.35 : 1)
             .scaleEffect(isDragging ? 0.97 : 1, anchor: .center)
-            .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isDragging)
+            .animation(.snappy, value: isDragging)
 
         let interactiveLabel = label
             .modifier(CounterHeaderDropBlockModifier(

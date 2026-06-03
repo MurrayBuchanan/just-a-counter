@@ -50,23 +50,21 @@ struct CounterFolderSectionView: View {
         return draggedCounter.collection == nil
     }
 
+    /// True when a counter drag is actively hovering over this section.
+    private var isDropTargetForCounterDrag: Bool {
+        draggingCounterID != nil && dragOverIndex?.collectionID == collectionID
+    }
+
     /// Excludes the dragged counter from layout once the drag has entered a drop target.
-    /// Keeping it visible until then prevents it disappearing during a context menu long-press.
     private var displayCounters: [Counter] {
         guard isDraggingFromThisSection, let draggingCounterID, dragOverIndex != nil else { return counters }
         return counters.filter { $0.uuid != draggingCounterID }
-    }
-
-    private var draggedSourceIndex: Int? {
-        guard isDraggingFromThisSection, let draggingCounterID else { return nil }
-        return counters.firstIndex(where: { $0.uuid == draggingCounterID })
     }
 
     private var dropTargetCounterCount: Int {
         isDraggingFromThisSection ? displayCounters.count : counters.count
     }
 
-    /// Omits the dragged counter from layout so its slot can be replaced by an insertion gap.
     private var listCounters: [Counter] {
         isDraggingFromThisSection ? displayCounters : counters
     }
@@ -95,9 +93,7 @@ struct CounterFolderSectionView: View {
                 onDragStart: collection.map { col in
                     {
                         draggingCounterID = nil
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
-                            draggingCollection = col
-                        }
+                        draggingCollection = col
                     }
                 },
                 onEdit: collection.flatMap { col in onEditCollection.map { edit in { edit(col) } } },
@@ -126,26 +122,35 @@ struct CounterFolderSectionView: View {
         VStack(spacing: 0) {
             counterRows
         }
-        .frame(minHeight: listCounters.isEmpty && isReorderingEnabled ? counterRowStride : 0)
+        // Show an empty drop-zone card only while drag is active; hide it in normal mode.
+        .frame(minHeight: listCounters.isEmpty && isDragLayoutActive ? counterRowStride : 0)
         .counterSectionGroupedBackground()
         .contentShape(Rectangle())
-        .modifier(counterSectionDropModifier(topInset: 0))
+        .modifier(counterSectionDropModifier)
     }
 
     private var collapsedDropTarget: some View {
-        Color.clear
-            .frame(maxWidth: .infinity, minHeight: counterRowStride)
-            .contentShape(Rectangle())
-            .modifier(counterSectionDropModifier(topInset: 0))
+        let shape = RoundedRectangle(cornerRadius: CounterGroupedListStyle.sectionCornerRadius, style: .continuous)
+        return ZStack {
+            if isDropTargetForCounterDrag {
+                shape
+                    .fill(.ultraThinMaterial)
+                    .overlay(shape.strokeBorder(Color.accentColor.opacity(0.45), lineWidth: 1.5))
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: counterRowStride)
+        .contentShape(Rectangle())
+        .modifier(counterSectionDropModifier)
+        .animation(.snappy, value: isDropTargetForCounterDrag)
     }
 
-    private func counterSectionDropModifier(topInset: CGFloat) -> CounterSectionDropModifier {
+    private var counterSectionDropModifier: CounterSectionDropModifier {
         CounterSectionDropModifier(
             enabled: isReorderingEnabled,
             collectionID: collectionID,
             counterCount: dropTargetCounterCount,
             rowStride: counterRowStride,
-            topInset: topInset,
             dragOverIndex: $dragOverIndex,
             shouldAcceptDrop: { draggingCounterID != nil },
             onPerformDrop: { index in
@@ -171,33 +176,28 @@ struct CounterFolderSectionView: View {
 
     @ViewBuilder
     private var counterRows: some View {
-        if listCounters.isEmpty, isReorderingEnabled {
-            Color.clear
-                .frame(maxWidth: .infinity, minHeight: counterRowStride)
-        } else {
-            ForEach(Array(listCounters.enumerated()), id: \.1.uuid) { idx, counter in
-                if showsInsertionGap(before: idx) {
-                    ReorderInsertionGap(height: counterRowStride)
-                }
-                DraggableCounterRow(
-                    counter: counter,
-                    collections: collections,
-                    isReorderingEnabled: isReorderingEnabled,
-                    onDragStart: {
-                        let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
-                        onBeginCounterDrag(counter, index)
-                    },
-                    onEdit: { onEditCounter(counter) },
-                    onMove: { onMoveCounter(counter, $0) },
-                    onDuplicate: { onDuplicateCounter(counter) },
-                    onDelete: { onDeleteCounter(counter) }
-                )
-                .frame(height: isDragLayoutActive ? counterRowStride : nil)
-                .counterSectionInsetDivider(isVisible: !isDragLayoutActive && idx < listCounters.count - 1)
-            }
-            if showsInsertionGap(before: listCounters.count) {
+        ForEach(Array(listCounters.enumerated()), id: \.1.uuid) { idx, counter in
+            if showsInsertionGap(before: idx) {
                 ReorderInsertionGap(height: counterRowStride)
             }
+            DraggableCounterRow(
+                counter: counter,
+                collections: collections,
+                isReorderingEnabled: isReorderingEnabled,
+                onDragStart: {
+                    let index = counters.firstIndex(where: { $0.uuid == counter.uuid }) ?? 0
+                    onBeginCounterDrag(counter, index)
+                },
+                onEdit: { onEditCounter(counter) },
+                onMove: { onMoveCounter(counter, $0) },
+                onDuplicate: { onDuplicateCounter(counter) },
+                onDelete: { onDeleteCounter(counter) }
+            )
+            .frame(height: isDragLayoutActive ? counterRowStride : nil)
+            .counterSectionInsetDivider(isVisible: !isDragLayoutActive && idx < listCounters.count - 1)
+        }
+        if showsInsertionGap(before: listCounters.count) {
+            ReorderInsertionGap(height: counterRowStride)
         }
     }
 
@@ -208,7 +208,7 @@ struct CounterFolderSectionView: View {
     }
 
     private func showsInsertionGap(before index: Int) -> Bool {
-        guard let dragOverIndex, draggingCounterID != nil, !listCounters.isEmpty else { return false }
+        guard let dragOverIndex, draggingCounterID != nil else { return false }
         return dragOverIndex.collectionID == collectionID && dragOverIndex.index == index
     }
 }
