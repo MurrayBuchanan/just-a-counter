@@ -160,14 +160,16 @@ struct CounterFolderSectionView: View {
                     return
                 }
                 let destination = collection
-                scheduleEndDragSession()
                 DispatchQueue.main.async {
-                    CounterReorder.moveCounter(
-                        draggingCounter,
-                        to: destination,
-                        at: index,
-                        allCounters: allCounters
-                    )
+                    withAnimation(.smooth(duration: 0.35)) {
+                        CounterReorder.moveCounter(
+                            draggingCounter,
+                            to: destination,
+                            at: index,
+                            allCounters: allCounters
+                        )
+                    }
+                    onEndDragSession()
                 }
             },
             onInvalidDrop: scheduleEndDragSession

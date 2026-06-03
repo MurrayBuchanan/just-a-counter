@@ -189,13 +189,15 @@ struct CountersListView: View {
                     proposed: index,
                     collections: collections
                 )
-                scheduleEndDragSession()
                 DispatchQueue.main.async {
-                    CounterReorder.moveCollection(
-                        draggingCollection,
-                        to: adjusted,
-                        collections: collections
-                    )
+                    withAnimation(.smooth(duration: 0.35)) {
+                        CounterReorder.moveCollection(
+                            draggingCollection,
+                            to: adjusted,
+                            collections: collections
+                        )
+                    }
+                    endDragSession()
                 }
             }
         )
